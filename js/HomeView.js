@@ -1,5 +1,6 @@
 import { el, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
+import { SampleProject } from './SampleProject.js';
 
 /** Home page: create, open, and delete projects. */
 export class HomeView {
@@ -42,7 +43,15 @@ export class HomeView {
     const projects = await this.storage.listProjects();
     this.count.textContent = projects.length ? `${projects.length} ${projects.length === 1 ? 'project' : 'projects'}` : '';
     if (!projects.length) {
-      this.list.replaceChildren(el('li', { class: 'empty' }, 'No projects yet.'));
+      this.list.replaceChildren(el('li', { class: 'empty' },
+        el('p', {}, 'No projects yet. Create one above, or explore a worked example.'),
+        el('button', {
+          class: 'btn',
+          onclick: async () => {
+            await this.storage.saveProject(SampleProject.create());
+            this.loadList();
+          },
+        }, 'Load sample project')));
       return;
     }
     this.list.replaceChildren(...projects.map((p) => el('li', { class: 'project-item' },

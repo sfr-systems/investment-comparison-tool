@@ -410,7 +410,8 @@ input.title-input:focus { background: var(--surface); border-color: var(--accent
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.project-list .empty { border: none; padding: 44px 24px; }
+.project-list .empty { border: none; padding: 40px 24px; }
+.project-list .empty p { margin: 0 0 14px; }
 .project-item {
   display: flex;
   align-items: center;

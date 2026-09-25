@@ -3,6 +3,7 @@ import { Router } from './Router.js';
 import { HomeView } from './HomeView.js';
 import { ProjectView } from './ProjectView.js';
 import { ThemeToggle } from './ThemeToggle.js';
+import { SampleProject } from './SampleProject.js';
 
 class App {
   constructor(root) {
@@ -18,8 +19,17 @@ class App {
       .otherwise(() => this.router.navigate('/'));
   }
 
-  start() {
+  async start() {
+    await this.seedSample();
     this.router.resolve();
+  }
+
+  /** First visit only: give new visitors the sample project to explore. */
+  async seedSample() {
+    if (await this.storage.getPreference('sampleSeeded')) return;
+    const existing = await this.storage.listProjects();
+    if (!existing.length) await this.storage.saveProject(SampleProject.create());
+    await this.storage.setPreference('sampleSeeded', true);
   }
 
   async openProject(id) {
