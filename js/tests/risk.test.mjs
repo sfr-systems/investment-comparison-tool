@@ -39,6 +39,11 @@ check('all-zero PVs fall back to counting', zeros.avg, 2 / 3);
 check('fallback flagged as unweighted', zeros.weighted, false);
 // Zero-value opportunities don't pull a weighted average
 check('zero-PV high ignored when others have value', summary(opp('low', 1000), opp('high', 0)).level, 'low');
+// An unbounded (indefinite, divergent) opportunity dominates any finite ones
+const perpetual = { risk: 'high', yearsMode: 'indefinite', years: 1, payout: 0,
+  initial: { amount: 0 }, yearlyReturn: { amount: 100, rate: { mode: 'custom', custom: 5 } },
+  salary: { amount: 0 }, loan: { amount: 0 } };
+check('unbounded high outweighs finite low', Risk.summarize([opp('low', 1e6), perpetual], settings).level, 'high');
 check('missing risk counts as neutral', summary(opp(undefined, 100)).level, 'neutral');
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }

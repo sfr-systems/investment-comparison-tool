@@ -63,9 +63,11 @@ export class OpportunityView {
         this.initialPayoutGroup(opp.initialPayout),
         this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate'),
         this.amountWithRate('Yearly salary', opp.salary, 'Growth rate'),
-        this.field('Final payout (one-time)', this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)'))),
+        this.finalPayoutField = this.field('Final payout (one-time)',
+          this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)'))),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
+        this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
         this.breakdownEl));
 
     this.update();
@@ -143,8 +145,9 @@ export class OpportunityView {
         root.classList.toggle('is-custom', opp.yearsMode === 'custom');
         ctx.changed();
       },
-    }, this.defaultYearsOption, el('option', { value: 'custom' }, 'Custom'));
-    select.value = opp.yearsMode === 'default' ? 'default' : 'custom';
+    }, this.defaultYearsOption, el('option', { value: 'custom' }, 'Custom'),
+    el('option', { value: 'indefinite' }, 'Indefinite (∞)'));
+    select.value = ['default', 'indefinite'].includes(opp.yearsMode) ? opp.yearsMode : 'custom';
 
     const root = el('div', { class: 'rate-selector timespan-selector' },
       select,
@@ -160,6 +163,21 @@ export class OpportunityView {
     const b = Calculator.opportunityBreakdown(this.opp, this.ctx.project.settings);
     showPV(this.pvEl, b.total);
     this.pvEl.classList.toggle('negative', b.total < -0.005);
+
+    // Indefinite timespan: the final payout never arrives, and some parts may not converge.
+    const indefinite = this.opp.yearsMode === 'indefinite';
+    this.root.classList.toggle('is-indefinite', indefinite);
+    const payoutInput = this.finalPayoutField.querySelector('input');
+    payoutInput.disabled = indefinite;
+    this.finalPayoutField.title = indefinite ? 'Never received on an indefinite timespan' : '';
+    const unbounded = Object.entries(BREAKDOWN_LABELS)
+      .filter(([key]) => !Number.isFinite(b[key])).map(([, label]) => label.toLowerCase());
+    this.warningEl.hidden = !unbounded.length;
+    if (unbounded.length) {
+      this.warningEl.textContent = `Unbounded: the ${unbounded.join(' and ')} `
+        + `${unbounded.length > 1 ? 'grow' : 'grows'} at or above the discount rate forever, so the present `
+        + `value has no finite limit. Use a growth rate below the discount rate, or a set timespan.`;
+    }
     this.breakdownEl.replaceChildren(...Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => Math.abs(b[key]) >= 0.005)
       .flatMap(([key, label]) => [el('dt', {}, label), showPV(el('dd'), b[key])]));

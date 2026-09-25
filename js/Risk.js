@@ -27,11 +27,14 @@ export class Risk {
     if (!opportunities.length) return null;
     const counts = { low: 0, neutral: 0, high: 0 };
     const weights = { low: 0, neutral: 0, high: 0 };
-    for (const opp of opportunities) {
+    const values = opportunities.map((opp) => Math.abs(Calculator.opportunityPV(opp, settings)));
+    // Unbounded (indefinite, divergent) opportunities dominate: weigh only those, equally.
+    const unbounded = values.some((v) => !Number.isFinite(v));
+    opportunities.forEach((opp, i) => {
       const key = Risk.byKey(opp.risk).key;
       counts[key]++;
-      weights[key] += Math.abs(Calculator.opportunityPV(opp, settings));
-    }
+      weights[key] += unbounded ? (Number.isFinite(values[i]) ? 0 : 1) : values[i];
+    });
     const totalWeight = weights.low + weights.neutral + weights.high;
     const weighted = totalWeight > 0.005;
     const basis = weighted ? weights : counts; // all-zero PVs: count each opportunity equally

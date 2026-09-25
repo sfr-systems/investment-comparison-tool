@@ -877,6 +877,19 @@ input.strategy-title {
   font-variant-numeric: tabular-nums;
 }
 .pv-value.negative { color: var(--negative); }
+.pv-warning {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--risk-neutral) 12%, var(--surface));
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.pv-warning[hidden] { display: none; }
+.opportunity.is-indefinite .opp-grid > .field:last-child { opacity: 0.5; }
+.opportunity.is-indefinite .opp-grid > .field:last-child .field-label::after { content: " · not received (indefinite)"; text-transform: none; letter-spacing: 0; font-weight: 500; }
+input:disabled { cursor: not-allowed; }
 .pv-breakdown {
   display: grid;
   grid-template-columns: 1fr auto;

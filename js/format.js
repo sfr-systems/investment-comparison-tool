@@ -1,6 +1,8 @@
 const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 
 export function formatUSD(value) {
+  if (Number.isNaN(value)) return '—';
+  if (!Number.isFinite(value)) return value > 0 ? '∞' : '−∞';
   const v = Math.abs(value) < 0.005 ? 0 : value; // avoid "-$0.00"
   return usd.format(v);
 }
@@ -20,6 +22,7 @@ export function roundPV(value) {
 }
 
 export function formatPV(value) {
+  if (!Number.isFinite(value)) return formatUSD(value);
   const { value: rounded, step } = roundPV(value);
   return step >= 1 ? usdWhole.format(rounded) : formatUSD(rounded);
 }
@@ -27,7 +30,9 @@ export function formatPV(value) {
 /** Show a rounded PV in `node`, with the exact amount on hover. */
 export function showPV(node, value) {
   node.textContent = formatPV(value);
-  node.title = `Exact: ${formatUSD(value)}`;
+  node.title = Number.isNaN(value) ? 'Undefined: combines unbounded gains and losses'
+    : !Number.isFinite(value) ? 'Unbounded: grows without limit on an indefinite timespan'
+      : `Exact: ${formatUSD(value)}`;
   return node;
 }
 

@@ -31,7 +31,7 @@ Footer: PV subtotal per individual (plus "Unassigned"), then the sub group's tot
 - Title
 - Risk: [Low | Neutral | High] toggle, default Neutral
 - Individual (free text, suggestions from names already used in the project)
-- Timespan n: [Default | Custom]. New opportunities use Default, which stays linked to the project's default timespan; Custom takes its own years (integer ≥ 1)
+- Timespan n: [Default | Custom | Indefinite]. New opportunities use Default, which stays linked to the project's default timespan; Custom takes its own years (integer ≥ 1); Indefinite = perpetuity (n → ∞)
 - Loan amount + loan interest rate
 - Initial investment + growth rate
 - Initial payout (one-time), paid at start + option to invest it for the timespan at a growth rate
@@ -50,6 +50,9 @@ Display the opportunity's PV.
 - Final payout P (one-time):       P / (1+d)^n
 - Loan L at rate r:                +L − Σ A / (1+d)^t, where A = level annual payment
                                    amortizing L over n years at r (A = L/n if r = 0)
+- Indefinite timespan (n → ∞), limits of the above: returns/salary R/(d−g) if g < d; initial investment −I
+  (g < d) or 0 (g = d); invested initial payout 0 (g < d) or P (g = d); final payout 0 (never received);
+  loan L − L·r/d (interest-only forever; +L at 0%). Where a limit doesn't exist (g > d), PV is ±∞ and the card explains.
 - Opportunity PV = sum of the above. Format as USD.
 
 ## UI

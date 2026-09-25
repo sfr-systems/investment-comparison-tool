@@ -1,11 +1,21 @@
 /**
  * Present-value math. All rates passed in are decimals (0.05 = 5%).
  * d = discount rate, n = years, t = 1..n.
+ * n may be Infinity (an indefinite timespan): each formula then uses its limit as n → ∞,
+ * returning ±Infinity where that limit doesn't exist (e.g. growth at or above the discount rate).
  */
 export class Calculator {
-  /** −I + I(1+g)^n / (1+d)^n */
+  /** lim (1+g)^n / (1+d)^n as n → ∞: 0 below, 1 at, ∞ above the discount rate. */
+  static growthRatioLimit(g, d) {
+    const ratio = (1 + g) / (1 + d);
+    if (Math.abs(ratio - 1) < 1e-12) return 1;
+    return ratio < 1 ? 0 : Infinity;
+  }
+
+  /** −I + I(1+g)^n / (1+d)^n. Indefinite: the investment is never cashed out. */
   static initialInvestmentPV(I, g, d, n) {
     if (!I) return 0;
+    if (n === Infinity) return -I + I * Calculator.growthRatioLimit(g, d);
     return -I + (I * Math.pow(1 + g, n)) / Math.pow(1 + d, n);
   }
 
@@ -15,12 +25,17 @@ export class Calculator {
    */
   static initialPayoutPV(P, invested, g, d, n) {
     if (!P) return 0;
+    if (n === Infinity) return invested ? P * Calculator.growthRatioLimit(g, d) : P;
     return invested ? (P * Math.pow(1 + g, n)) / Math.pow(1 + d, n) : P;
   }
 
-  /** Σ C(1+g)^(t−1) / (1+d)^t — used for yearly return and yearly salary. */
+  /**
+   * Σ C(1+g)^(t−1) / (1+d)^t — used for yearly return and yearly salary.
+   * Indefinite: growing perpetuity C / (d − g), which only converges when g < d.
+   */
   static growingAnnuityPV(C, g, d, n) {
     if (!C) return 0;
+    if (n === Infinity) return g < d ? C / (d - g) : Math.sign(C) * Infinity;
     let pv = 0;
     for (let t = 1; t <= n; t++) {
       pv += (C * Math.pow(1 + g, t - 1)) / Math.pow(1 + d, t);
@@ -28,21 +43,30 @@ export class Calculator {
     return pv;
   }
 
-  /** P / (1+d)^n */
+  /** P / (1+d)^n. Indefinite: the end never comes, so the payout is never received. */
   static payoutPV(P, d, n) {
     if (!P) return 0;
+    if (n === Infinity) return 0;
     return P / Math.pow(1 + d, n);
   }
 
-  /** Level annual payment amortizing L over n years at r (L/n when r = 0). */
+  /** Level annual payment amortizing L over n years at r (L/n when r = 0). Indefinite: L·r. */
   static loanPayment(L, r, n) {
+    if (n === Infinity) return L * r;
     if (r === 0) return L / n;
     return (L * r) / (1 - Math.pow(1 + r, -n));
   }
 
-  /** +L − Σ A / (1+d)^t */
+  /**
+   * +L − Σ A / (1+d)^t.
+   * Indefinite: interest-only payments A = L·r forever, so L − L·r/d (just +L at 0% interest).
+   */
   static loanPV(L, r, d, n) {
     if (!L) return 0;
+    if (n === Infinity) {
+      if (r === 0) return L;
+      return d > 0 ? L - (L * r) / d : -Infinity;
+    }
     const A = Calculator.loanPayment(L, r, n);
     let pv = L;
     for (let t = 1; t <= n; t++) pv -= A / Math.pow(1 + d, t);
@@ -62,8 +86,9 @@ export class Calculator {
     }
   }
 
-  /** Timespan n: the project default when the opportunity follows it, else its own years. */
+  /** Timespan n: Infinity when indefinite, the project default when following it, else its own years. */
   static resolveYears(opp, settings) {
+    if (opp.yearsMode === 'indefinite') return Infinity;
     const raw = opp.yearsMode === 'default' ? (settings.defaultYears ?? 15) : opp.years;
     return Math.max(1, Math.floor(Number(raw) || 1));
   }

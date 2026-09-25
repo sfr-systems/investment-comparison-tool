@@ -22,6 +22,9 @@ check('$6,000,000 → nearest $1,000', formatPV(6123456.78), '$6,123,000');
 check('zero', formatPV(0), '$0.00');
 check('tiny negative reads as zero', formatPV(-0.001), '$0.00');
 check('step for $187,086', roundPV(187086.31).step, 100);
+check('unbounded shows ∞', formatPV(Infinity), '∞');
+check('unbounded loss shows −∞', formatPV(-Infinity), '−∞');
+check('undefined shows —', formatPV(NaN), '—');
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log('\nAll passed');

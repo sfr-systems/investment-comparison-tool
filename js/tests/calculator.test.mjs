@@ -3,7 +3,7 @@ import { Calculator as C } from '../Calculator.js';
 
 let failed = 0;
 function check(name, actual, expected, tol = 1e-4) {
-  const ok = Math.abs(actual - expected) <= tol;
+  const ok = actual === expected || Math.abs(actual - expected) <= tol;
   if (!ok) failed++;
   console.log(`${ok ? 'PASS' : 'FAIL'}  ${name}: got ${actual.toFixed(4)}, expected ${expected.toFixed(4)}`);
 }
@@ -64,6 +64,42 @@ check('default-timespan follows new default n=2',
   C.opportunityPV(payoutOnly({ yearsMode: 'default' }), { ...tsSettings, defaultYears: 2 }), 826.4463);
 check('custom timespan ignores default',
   C.opportunityPV(payoutOnly({ yearsMode: 'custom', years: 2 }), tsSettings), 826.4463);
+
+// ---- Indefinite timespan (n = ∞): limits, each also checked against a very long finite n
+const INF = Infinity, BIG = 2000;
+// Growing perpetuity: 100 / (0.10 − 0) = 1000; 100 / (0.07 − 0.02) = 2000
+check('perpetuity R=100 g=0 d=10%', C.growingAnnuityPV(100, 0, 0.10, INF), 1000);
+check('perpetuity R=100 g=2% d=7%', C.growingAnnuityPV(100, 0.02, 0.07, INF), 2000);
+check('…matches n=2000', C.growingAnnuityPV(100, 0.02, 0.07, BIG), 2000, 0.01);
+check('perpetuity g = d diverges', C.growingAnnuityPV(100, 0.05, 0.05, INF), Infinity);
+check('perpetuity g > d diverges', C.growingAnnuityPV(100, 0.08, 0.05, INF), Infinity);
+// Initial investment held forever: −I (g < d), 0 (g = d)
+check('investment forever g<d → −I', C.initialInvestmentPV(1000, 0.05, 0.07, INF), -1000);
+check('…matches n=2000', C.initialInvestmentPV(1000, 0.05, 0.07, BIG), -1000, 0.01);
+check('investment forever g=d → 0', C.initialInvestmentPV(1000, 0.07, 0.07, INF), 0);
+check('investment forever g>d → ∞', C.initialInvestmentPV(1000, 0.12, 0.07, INF), Infinity);
+// Initial payout: kept → +P; invested forever → 0 (g < d), P (g = d)
+check('initial payout kept', C.initialPayoutPV(500, false, 0.12, 0.07, INF), 500);
+check('initial payout invested g<d → 0', C.initialPayoutPV(500, true, 0.05, 0.07, INF), 0);
+check('initial payout invested g=d → P', C.initialPayoutPV(500, true, 0.07, 0.07, INF), 500);
+// Final payout never arrives
+check('final payout indefinite → 0', C.payoutPV(1000, 0.07, INF), 0);
+// Loan, interest-only forever: 1000 − 1000·0.05/0.10 = 500; at 0% → +1000; r > d → negative
+check('loan forever r=5% d=10%', C.loanPV(1000, 0.05, 0.10, INF), 500);
+check('…matches n=2000', C.loanPV(1000, 0.05, 0.10, BIG), 500, 0.01);
+check('loan forever r=0 → +L', C.loanPV(1000, 0, 0.10, INF), 1000);
+check('loan forever r=12% d=7%', C.loanPV(1000, 0.12, 0.07, INF), 1000 - 1000 * 0.12 / 0.07);
+// Whole opportunity: salary 40,000 flat + loan 60,000 at 5%, discount 7%, indefinite
+const indefSettings = { discountRate: 7, sp500Rate: 12, loanRate: 5, defaultYears: 15 };
+const indefOpp = {
+  yearsMode: 'indefinite', years: 5,
+  initial: { amount: 0, rate: { mode: 'none' } }, yearlyReturn: { amount: 0, rate: { mode: 'none' } },
+  salary: { amount: 40000, rate: { mode: 'none' } }, payout: 99999,
+  loan: { amount: 60000, rate: { mode: 'loan' } },
+};
+// 40000/0.07 + (60000 − 60000·0.05/0.07) = 571428.5714 + 17142.8571
+check('opportunity indefinite', C.opportunityPV(indefOpp, indefSettings), 40000 / 0.07 + 60000 - 60000 * 0.05 / 0.07);
+check('resolveYears indefinite', C.resolveYears({ yearsMode: 'indefinite' }, indefSettings), Infinity);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);
