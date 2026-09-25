@@ -132,7 +132,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
   color: var(--text);
   text-decoration: none;
 }
-.brand-logo { display: block; width: 34px; height: 34px; flex: none; color: var(--logo-line); }
+.brand-logo { display: block; width: 38px; height: 38px; flex: none; color: var(--logo-line); }
 .brand-logo svg { display: block; width: 100%; height: 100%; }
 .brand-logo .logo-pan { fill: var(--gold); }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
