@@ -66,7 +66,7 @@ export class ProjectView {
           el('button', {
             type: 'button', class: 'btn duplicate-btn', title: 'Make a copy of this project',
             onclick: () => this.duplicate(),
-          }, icon('copy'), 'Duplicate')),
+          }, icon('copy'), el('span', {}, 'Duplicate', el('span', { class: 'hide-on-mobile' }, ' Project')))),
         name),
       el('div', { class: 'settings-bar', role: 'group', 'aria-label': 'Project settings' },
         el('div', { class: 'settings-title' },

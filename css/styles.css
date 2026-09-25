@@ -1005,6 +1005,7 @@ input:disabled { cursor: not-allowed; }
   .new-project { flex-direction: column; }
   .new-project input { flex: none; }
   .project-open span { display: none; }
+  .hide-on-mobile { display: none; }
 
   input.project-title { font-size: 26px; }
   .settings-bar { position: static; column-gap: 12px; padding: 14px; }
