@@ -10,7 +10,7 @@ export class Calculator {
   }
 
   /**
-   * One-time payout P received at the start (t = 0).
+   * Initial payout P (one-time) received at the start (t = 0).
    * Not invested: +P. Invested at g until year n: P(1+g)^n / (1+d)^n.
    */
   static initialPayoutPV(P, invested, g, d, n) {

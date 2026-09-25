@@ -30,12 +30,12 @@ Footer: PV subtotal per individual (plus "Unassigned"), then the sub group's tot
 - Title
 - Individual (free text, suggestions from names already used in the project)
 - Timespan n (years, integer ≥ 1)
+- Loan amount + loan interest rate
 - Initial investment + growth rate
+- Initial payout (one-time), paid at start + option to invest it for the timespan at a growth rate
 - Yearly return + growth rate
 - Yearly salary + growth rate
-- Initial one-time payout (paid at start) + option to invest it for the timespan at a growth rate
-- One-time payout at end
-- Loan amount + loan interest rate
+- Final payout (one-time), paid at end
 Every rate field has a selector: [S&P 500 | Standard loan | Custom % | None].
 Standard options stay linked to the project value (update when it changes).
 Display the opportunity's PV.
@@ -44,8 +44,8 @@ Display the opportunity's PV.
 - Initial investment I, growth g:  −I + I(1+g)^n / (1+d)^n
 - Yearly return R, growth g:       Σ R(1+g)^(t−1) / (1+d)^t
 - Yearly salary S, growth g:       Σ S(1+g)^(t−1) / (1+d)^t
-- Initial one-time payout P0 (paid at start): +P0; if invested at g for the timespan: P0(1+g)^n / (1+d)^n
-- Payout P:                        P / (1+d)^n
+- Initial payout P0 (one-time, paid at start): +P0; if invested at g for the timespan: P0(1+g)^n / (1+d)^n
+- Final payout P (one-time):       P / (1+d)^n
 - Loan L at rate r:                +L − Σ A / (1+d)^t, where A = level annual payment
                                    amortizing L over n years at r (A = L/n if r = 0)
 - Opportunity PV = sum of the above. Format as USD.

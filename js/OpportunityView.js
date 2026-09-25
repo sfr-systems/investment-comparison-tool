@@ -4,12 +4,12 @@ import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
 
 const BREAKDOWN_LABELS = {
+  loan: 'Loan',
   initial: 'Investment',
   initialPayout: 'Initial payout',
   yearlyReturn: 'Returns',
   salary: 'Salary',
-  payout: 'Payout at end',
-  loan: 'Loan',
+  payout: 'Final payout',
 };
 
 /** One opportunity card: inputs + live PV. */
@@ -58,12 +58,12 @@ export class OpportunityView {
         this.field('Individual', individual),
         this.field('Timespan (years)', years)),
       el('div', { class: 'opp-grid' },
+        this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate'),
         this.initialPayoutGroup(opp.initialPayout),
         this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate'),
         this.amountWithRate('Yearly salary', opp.salary, 'Growth rate'),
-        this.field('One-time payout at end', this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'One-time payout at end')),
-        this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate')),
+        this.field('Final payout (one-time)', this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)'))),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.breakdownEl));
@@ -97,7 +97,7 @@ export class OpportunityView {
 
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
   initialPayoutGroup(group) {
-    const label = 'Initial one-time payout';
+    const label = 'Initial payout (one-time)';
     const selector = new RateSelector(group.rate, this.ctx, { label: `${label} growth rate` });
     this.rateSelectors.push(selector);
 
