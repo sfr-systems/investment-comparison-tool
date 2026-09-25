@@ -59,7 +59,7 @@ export class StrategyView {
     const beacon = Beacon.describe(strategy.beacon);
     this.root = el('section', { class: 'strategy' },
       el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
-        el('div', { class: 'strategy-rail' }, Beacon.badge(strategy.beacon), this.toggle),
+        this.toggle,
         title,
         el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
         el('button', {
@@ -68,10 +68,13 @@ export class StrategyView {
         }, icon('trash'))),
       body);
 
-    Beacon.paint(this.root, strategy.beacon);
+    // The badge straddles the strategy's top border, so it lives on an outer wrapper
+    // (the strategy itself clips its content to its rounded corners).
+    const wrapper = el('div', { class: 'strategy-wrap' }, Beacon.badge(strategy.beacon), this.root);
+    Beacon.paint(wrapper, strategy.beacon);
     this.syncCollapsed();
     this.update();
-    return this.root;
+    return wrapper;
   }
 
   syncCollapsed() {
