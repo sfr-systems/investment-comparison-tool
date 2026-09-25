@@ -71,7 +71,7 @@ export class ProjectView {
           `Used only for present-value calculations. Typically 6–10% (8% is common); `
           + `the risk-free 10-yr Treasury yields ≈ ${REF.treasury10y.toFixed(1)}%.`),
         setting('S&P 500 return', 'sp500Rate',
-          `25-yr average: ${REF.sp500Avg25y.toFixed(1)}% per year `
+          `15-yr average: ${REF.sp500Avg15y.toFixed(1)}% per year `
           + `(${REF.sp500Period}, compounded, dividends reinvested).`),
         setting('Loan interest rate', 'loanRate',
           `U.S. prime rate: ${REF.primeNow.toFixed(2)}% today; `

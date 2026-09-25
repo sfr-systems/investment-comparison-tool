@@ -2,7 +2,7 @@
  * Market reference figures shown as notes in the Assumptions bar.
  * Informational only: they never change calculations. Refresh periodically.
  *
- * - sp500Avg25y: compound annual S&P 500 total return (dividends reinvested), 2001–2025,
+ * - sp500Avg15y: compound annual S&P 500 total return (dividends reinvested), 2011–2025,
  *   computed from NYU Stern (Damodaran) annual returns.
  * - primeNow / primeAvg25y: U.S. prime rate (effective Sep 17, 2026) and its average over
  *   Sep 2001–Aug 2026, from Federal Reserve data via FRED (MPRIME).
@@ -10,8 +10,8 @@
  */
 export const REFERENCE_RATES = {
   asOf: 'September 24, 2026',
-  sp500Avg25y: 8.7,
-  sp500Period: '2001–2025',
+  sp500Avg15y: 13.9,
+  sp500Period: '2011–2025',
   primeNow: 7.0,
   primeAvg25y: 4.9,
   treasury10y: 5.0,
