@@ -4,8 +4,8 @@
  *
  * - sp500Avg15y: compound annual S&P 500 total return (dividends reinvested), 2011–2025,
  *   computed from NYU Stern (Damodaran) annual returns.
- * - primeNow / primeAvg25y: U.S. prime rate (effective Sep 17, 2026) and its average over
- *   Sep 2001–Aug 2026, from Federal Reserve data via FRED (MPRIME).
+ * - primeNow / primeAvg15y: U.S. prime rate (effective Sep 17, 2026) and its average over
+ *   Sep 2011–Aug 2026 (180 months), from Federal Reserve data via FRED (MPRIME).
  * - treasury10y: 10-year Treasury constant-maturity yield, late Sep 2026 (FRED DGS10).
  */
 export const REFERENCE_RATES = {
@@ -13,7 +13,7 @@ export const REFERENCE_RATES = {
   sp500Avg15y: 13.9,
   sp500Period: '2011–2025',
   primeNow: 7.0,
-  primeAvg25y: 4.9,
+  primeAvg15y: 4.8,
   treasury10y: 5.0,
   sources: [
     { label: 'S&P 500 returns (NYU Stern)', url: 'https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datafile/histretSP.html' },

@@ -75,7 +75,7 @@ export class ProjectView {
           + `(${REF.sp500Period}, compounded, dividends reinvested).`),
         setting('Loan interest rate', 'loanRate',
           `U.S. prime rate: ${REF.primeNow.toFixed(2)}% today; `
-          + `25-yr average ${REF.primeAvg25y.toFixed(1)}%. Consumer loans typically price above prime.`),
+          + `15-yr average ${REF.primeAvg15y.toFixed(1)}%. Consumer loans typically price above prime.`),
         setting('Default timespan', 'defaultYears', 'Applies to opportunities set to Default.', {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
