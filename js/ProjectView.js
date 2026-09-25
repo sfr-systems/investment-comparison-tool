@@ -48,7 +48,7 @@ export class ProjectView {
         el('span', { class: 'field-label' }, label),
         el('span', { class: suffix.length > 1 ? 'with-suffix suffix-wide' : 'with-suffix' },
           numberInput({
-            value: s[key], emptyAs: null, 'aria-label': label, ...rule,
+            value: s[key], emptyAs: null, 'aria-label': label, arrowStep: 1, ...rule,
             onValue: (n) => { s[key] = n; ctx.changed(); },
           }),
           el('span', { class: 'suffix' }, suffix)),

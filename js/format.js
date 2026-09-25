@@ -70,9 +70,10 @@ export function groupDigits(str) {
  * Validated numeric text input with thousands separators (type="number" can't show commas).
  * Calls onValue(number) only when the value passes:
  *   min (inclusive), greaterThan (exclusive), integer, emptyAs (value used when blank; null = blank invalid).
+ * arrowStep: when set, ArrowUp/ArrowDown add/subtract this amount (staying within the rules above).
  */
 export function numberInput({ value, min, greaterThan, integer = false, emptyAs = 0,
-  message = 'Invalid value', onValue, ...attrs }) {
+  arrowStep = null, message = 'Invalid value', onValue, ...attrs }) {
   const input = el('input', {
     type: 'text',
     inputMode: integer ? 'numeric' : 'decimal',
@@ -110,6 +111,22 @@ export function numberInput({ value, min, greaterThan, integer = false, emptyAs 
   };
 
   input.addEventListener('input', () => { reformat(); validate(); });
+
+  if (arrowStep) {
+    input.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      e.preventDefault(); // keep the caret where it is
+      const current = Number(input.value.replace(/,/g, ''));
+      const base = input.value.trim() !== '' && Number.isFinite(current) ? current : (min ?? 0);
+      // Round to avoid float drift (e.g. 5.1 + 1 = 6.1, not 6.1000000000000005).
+      const next = Math.round((base + (e.key === 'ArrowUp' ? arrowStep : -arrowStep)) * 1e6) / 1e6;
+      if (min != null && next < min) return;
+      if (greaterThan != null && next <= greaterThan) return;
+      if (integer && !Number.isInteger(next)) return;
+      input.value = groupDigits(String(next));
+      validate();
+    });
+  }
   return input;
 }
 
