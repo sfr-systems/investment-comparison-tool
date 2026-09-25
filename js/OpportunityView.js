@@ -36,7 +36,7 @@ export class OpportunityView {
     individual.setAttribute('list', ctx.datalistId);
 
     const years = numberInput({
-      value: opp.years, min: 1, integer: true, emptyAs: null, step: 1,
+      value: opp.years, min: 1, integer: true, emptyAs: null,
       message: 'Timespan must be a whole number of years ≥ 1',
       'aria-label': 'Timespan (years)',
       onValue: (n) => { opp.years = n; ctx.changed(); },

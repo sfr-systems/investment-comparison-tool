@@ -202,7 +202,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
 input, select, button { font: inherit; color: inherit; }
 
 input[type="text"],
-input[type="number"],
+input.num-input,
 select {
   width: 100%;
   min-width: 0;
@@ -226,13 +226,7 @@ button:focus-visible, a:focus-visible {
   outline-offset: 2px;
 }
 
-input[type="number"] {
-  font-variant-numeric: tabular-nums;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-input[type="number"]::-webkit-outer-spin-button,
-input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input.num-input { font-variant-numeric: tabular-nums; }
 
 select {
   -webkit-appearance: none;

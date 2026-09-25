@@ -58,24 +58,58 @@ export function setValidity(input, ok, message = '') {
   return ok;
 }
 
+/** "6000000.5" → "6,000,000.5". Keeps a trailing "." or partial decimals while typing. */
+export function groupDigits(str) {
+  const m = /^(-?)(\d*)(\.?\d*)$/.exec(str);
+  if (!m) return str;
+  const [, sign, int, frac] = m;
+  return sign + int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') + frac;
+}
+
 /**
- * Validated number input. Calls onValue(number) only when the value passes:
+ * Validated numeric text input with thousands separators (type="number" can't show commas).
+ * Calls onValue(number) only when the value passes:
  *   min (inclusive), greaterThan (exclusive), integer, emptyAs (value used when blank; null = blank invalid).
  */
 export function numberInput({ value, min, greaterThan, integer = false, emptyAs = 0,
-  step = 'any', message = 'Invalid value', onValue, ...attrs }) {
-  const input = el('input', { type: 'number', step, inputMode: 'decimal', value: value ?? '', ...attrs });
-  if (min != null) input.min = min;
+  message = 'Invalid value', onValue, ...attrs }) {
+  const input = el('input', {
+    type: 'text',
+    inputMode: integer ? 'numeric' : 'decimal',
+    autocomplete: 'off',
+    value: value == null || value === '' ? '' : groupDigits(String(value)),
+    ...attrs,
+  });
+  input.classList.add('num-input');
+
+  const reformat = () => {
+    const old = input.value;
+    const caret = input.selectionStart ?? old.length;
+    // Count meaningful characters left of the caret so it can be restored after regrouping.
+    const keepBefore = old.slice(0, caret).replace(/[^\d.-]/g, '').length;
+    const cleaned = old.replace(/[^\d.-]/g, '');
+    const next = groupDigits(cleaned);
+    if (next === old) return;
+    input.value = next;
+    let pos = 0;
+    for (let seen = 0; pos < next.length && seen < keepBefore; pos++) {
+      if (/[\d.-]/.test(next[pos])) seen++;
+    }
+    input.setSelectionRange(pos, pos);
+  };
+
   const validate = () => {
-    const raw = input.value.trim();
-    let n = raw === '' ? emptyAs : Number(raw);
-    let ok = n != null && Number.isFinite(n) && !input.validity.badInput;
+    const raw = input.value.replace(/,/g, '').trim();
+    const wellFormed = raw === '' || /^-?(\d+\.?\d*|\.\d+)$/.test(raw);
+    const n = raw === '' ? emptyAs : Number(raw);
+    let ok = wellFormed && n != null && Number.isFinite(n);
     if (ok && min != null && n < min) ok = false;
     if (ok && greaterThan != null && n <= greaterThan) ok = false;
     if (ok && integer && !Number.isInteger(n)) ok = false;
     if (setValidity(input, ok, message)) onValue(n);
   };
-  input.addEventListener('input', validate);
+
+  input.addEventListener('input', () => { reformat(); validate(); });
   return input;
 }
 
