@@ -1,4 +1,4 @@
-import { el, formatUSD, confirmDelete, icon } from './format.js';
+import { el, showPV, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { SubGroupView } from './SubGroupView.js';
@@ -86,7 +86,7 @@ export class StrategyView {
   update() {
     this.children.forEach((c) => c.update());
     const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings);
-    this.totalEl.textContent = formatUSD(total);
+    showPV(this.totalEl, total);
     this.totalEl.classList.toggle('negative', total < -0.005);
   }
 }

@@ -1,4 +1,4 @@
-import { el, formatUSD, confirmDelete, icon } from './format.js';
+import { el, formatUSD, showPV, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { OpportunityView } from './OpportunityView.js';
@@ -80,13 +80,15 @@ export class SubGroupView {
   update() {
     this.children.forEach((c) => c.update());
     const { byIndividual, total } = Calculator.subGroupTotals(this.sg, this.ctx.project.settings);
-    this.headerTotal.textContent = formatUSD(total);
-    const amount = (pv) => el('span', { class: pv < -0.005 ? 'negative' : '' }, formatUSD(pv));
+    showPV(this.headerTotal, total);
+    const amount = (pv) => showPV(el('span', { class: pv < -0.005 ? 'negative' : '' }), pv);
     const rows = [el('div', { class: 'eyebrow totals-caption' }, 'Present value by individual')];
     rows.push(...byIndividual.map(([name, pv]) =>
       el('div', { class: 'total-row' }, el('span', {}, name), amount(pv))));
+    // The one place the exact (unrounded) present value is shown.
     rows.push(el('div', { class: 'total-row grand' },
-      el('span', {}, 'Sub group total'), amount(total)));
+      el('span', {}, 'Sub group total'),
+      el('span', { class: total < -0.005 ? 'negative' : '' }, formatUSD(total))));
     this.headerTotal.classList.toggle('negative', total < -0.005);
     this.footer.replaceChildren(...rows);
   }

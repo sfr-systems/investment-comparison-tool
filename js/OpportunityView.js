@@ -1,4 +1,4 @@
-import { el, numberInput, formatUSD, icon, setValidity } from './format.js';
+import { el, numberInput, showPV, icon, setValidity } from './format.js';
 import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
@@ -154,11 +154,11 @@ export class OpportunityView {
     this.defaultYearsOption.textContent = `Default (${n} ${n === 1 ? 'yr' : 'yrs'})`;
 
     const b = Calculator.opportunityBreakdown(this.opp, this.ctx.project.settings);
-    this.pvEl.textContent = formatUSD(b.total);
+    showPV(this.pvEl, b.total);
     this.pvEl.classList.toggle('negative', b.total < -0.005);
     this.breakdownEl.replaceChildren(...Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => Math.abs(b[key]) >= 0.005)
-      .flatMap(([key, label]) => [el('dt', {}, label), el('dd', {}, formatUSD(b[key]))]));
+      .flatMap(([key, label]) => [el('dt', {}, label), showPV(el('dd'), b[key])]));
     this.rateSelectors.forEach((r) => r.update());
   }
 }

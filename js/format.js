@@ -5,6 +5,32 @@ export function formatUSD(value) {
   return usd.format(v);
 }
 
+const usdWhole = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
+/**
+ * Display rounding for present values: round to the largest power of ten that is no more than
+ * 0.1% of the value (e.g. $187,086.31 → $187,100). Whole dollars once that step reaches $1;
+ * otherwise cents are kept (never finer than $0.01).
+ */
+export function roundPV(value) {
+  const abs = Math.abs(value);
+  if (abs < 0.005) return { value: 0, step: 0.01 };
+  const step = Math.max(0.01, 10 ** Math.floor(Math.log10(abs * 0.001)));
+  return { value: Math.round(value / step) * step, step };
+}
+
+export function formatPV(value) {
+  const { value: rounded, step } = roundPV(value);
+  return step >= 1 ? usdWhole.format(rounded) : formatUSD(rounded);
+}
+
+/** Show a rounded PV in `node`, with the exact amount on hover. */
+export function showPV(node, value) {
+  node.textContent = formatPV(value);
+  node.title = `Exact: ${formatUSD(value)}`;
+  return node;
+}
+
 export function formatPct(value) {
   return `${Number(value) || 0}%`;
 }
