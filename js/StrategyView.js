@@ -91,7 +91,8 @@ export class StrategyView {
     this.children.forEach((c) => c.update());
     const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings);
     showPV(this.totalEl, total);
-    Risk.render(this.riskEl, this.strategy.subGroups.flatMap((sg) => sg.opportunities));
+    Risk.render(this.riskEl, this.strategy.subGroups.flatMap((sg) => sg.opportunities),
+      this.ctx.project.settings);
     this.riskWrap.hidden = this.riskEl.hidden;
     this.totalEl.classList.toggle('negative', total < -0.005);
   }

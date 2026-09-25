@@ -1,9 +1,12 @@
 import { el } from './format.js';
+import { Calculator } from './Calculator.js';
 
 /**
  * Opportunity risk levels and their aggregate display.
- * Aggregates score each opportunity Low = 0, Neutral = 1, High = 2 and average them
- * (unweighted); the gauge needle shows the average and a bar shows the mix.
+ * Aggregates score each opportunity Low = 0, Neutral = 1, High = 2 and take the average
+ * weighted by the size of each opportunity's present value (|PV|), so larger opportunities
+ * count for more. If every PV is zero, each opportunity counts equally. The gauge needle
+ * shows the weighted average; the bar shows each level's share of value.
  */
 export class Risk {
   static LEVELS = [
@@ -16,15 +19,27 @@ export class Risk {
     return Risk.LEVELS.find((l) => l.key === key) ?? Risk.LEVELS[1];
   }
 
-  /** { total, counts: {low, neutral, high}, avg (0–2), level } or null when empty. */
-  static summarize(opportunities) {
+  /**
+   * { total, counts, shares, avg (0–2), level, weighted } or null when empty.
+   * counts: opportunities per level; shares: fraction of value per level (sums to 1).
+   */
+  static summarize(opportunities, settings) {
     if (!opportunities.length) return null;
     const counts = { low: 0, neutral: 0, high: 0 };
-    for (const opp of opportunities) counts[Risk.byKey(opp.risk).key]++;
-    const total = opportunities.length;
-    const avg = (counts.neutral + 2 * counts.high) / total;
+    const weights = { low: 0, neutral: 0, high: 0 };
+    for (const opp of opportunities) {
+      const key = Risk.byKey(opp.risk).key;
+      counts[key]++;
+      weights[key] += Math.abs(Calculator.opportunityPV(opp, settings));
+    }
+    const totalWeight = weights.low + weights.neutral + weights.high;
+    const weighted = totalWeight > 0.005;
+    const basis = weighted ? weights : counts; // all-zero PVs: count each opportunity equally
+    const sum = basis.low + basis.neutral + basis.high;
+    const shares = { low: basis.low / sum, neutral: basis.neutral / sum, high: basis.high / sum };
+    const avg = shares.neutral + 2 * shares.high;
     const level = avg < 2 / 3 ? 'low' : avg > 4 / 3 ? 'high' : 'neutral';
-    return { total, counts, avg, level };
+    return { total: opportunities.length, counts, shares, avg, level, weighted };
   }
 
   /** Speedometer icon: green/amber/red arc with a needle at `score` (0 = low … 2 = high). */
@@ -51,15 +66,18 @@ export class Risk {
   }
 
   /** Draw (or hide) an aggregate indicator for a list of opportunities. */
-  static render(node, opportunities) {
-    const summary = Risk.summarize(opportunities);
+  static render(node, opportunities, settings) {
+    const summary = Risk.summarize(opportunities, settings);
     node.hidden = !summary;
     if (!summary) return;
-    const { counts, total, avg, level } = summary;
-    const label = level === 'neutral' ? 'Neutral risk' : `${Risk.byKey(level).label} risk`;
+    const { counts, shares, total, avg, level, weighted } = summary;
+    const label = `${Risk.byKey(level).label} risk`;
+    const pct = (x) => `${Math.round(x * 100)}%`;
     node.className = node.className.replace(/\brisk-(low|neutral|high)\b/g, '').trim() + ` risk-${level}`;
-    node.title = `${label}: ${counts.low} low, ${counts.neutral} neutral, ${counts.high} high `
-      + `(${total} ${total === 1 ? 'opportunity' : 'opportunities'})`;
+    node.title = `${label} (${weighted ? 'weighted by present value' : 'no value yet, counted equally'}): `
+      + `${pct(shares.low)} low, ${pct(shares.neutral)} neutral, ${pct(shares.high)} high. `
+      + `${total} ${total === 1 ? 'opportunity' : 'opportunities'}: `
+      + `${counts.low} low, ${counts.neutral} neutral, ${counts.high} high.`;
     node.setAttribute('role', 'img');
     node.setAttribute('aria-label', node.title);
     node.replaceChildren(
@@ -67,8 +85,8 @@ export class Risk {
       el('span', { class: 'risk-text' },
         el('span', { class: 'risk-label' }, label),
         el('span', { class: 'risk-bar' },
-          ...['low', 'neutral', 'high'].filter((k) => counts[k])
-            .map((k) => el('span', { class: `risk-bar-${k}`, style: { flexGrow: counts[k] } })))));
+          ...['low', 'neutral', 'high'].filter((k) => shares[k] > 0)
+            .map((k) => el('span', { class: `risk-bar-${k}`, style: { flexGrow: shares[k] } })))));
   }
 
   /** Three-way Low / Neutral / High toggle for one opportunity. */

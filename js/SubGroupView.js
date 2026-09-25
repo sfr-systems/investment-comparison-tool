@@ -83,7 +83,7 @@ export class SubGroupView {
     this.children.forEach((c) => c.update());
     const { byIndividual, total } = Calculator.subGroupTotals(this.sg, this.ctx.project.settings);
     showPV(this.headerTotal, total);
-    Risk.render(this.riskEl, this.sg.opportunities);
+    Risk.render(this.riskEl, this.sg.opportunities, this.ctx.project.settings);
     const amount = (pv) => showPV(el('span', { class: pv < -0.005 ? 'negative' : '' }), pv);
     const rows = [el('div', { class: 'eyebrow totals-caption' }, 'Present value by individual')];
     rows.push(...byIndividual.map(([name, pv]) =>
