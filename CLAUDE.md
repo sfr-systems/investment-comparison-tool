@@ -12,7 +12,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
 
 ## Pages (hash routing)
 - Home (#/): project list, "New Project" (optional name, default "Untitled Project"), open, delete. A project is required before anything else.
-- Project (#/project/:id): settings bar at top, then strategies in a vertical stacked list.
+- Project (#/project/:id): settings bar at top, then strategies in a vertical stacked list. A Duplicate button (top right) copies the project with fresh ids as "Name (copy)" and opens it.
 
 ## Project settings (top of project page; changes recalc everything live)
 - Discount rate (%, default 7), used for all PV calculations

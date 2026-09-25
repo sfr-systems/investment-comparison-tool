@@ -43,6 +43,34 @@ export class Models {
     return opp;
   }
 
+  /**
+   * Deep copy of a project with fresh ids throughout (project, strategies, sub groups,
+   * opportunities), so the copy is fully independent. `name` is the copy's name.
+   */
+  static cloneProject(project, name) {
+    const copy = structuredClone(project);
+    copy.id = Models.id();
+    copy.name = name;
+    copy.createdAt = copy.updatedAt = Date.now();
+    for (const st of copy.strategies) {
+      st.id = Models.id();
+      for (const sg of st.subGroups) {
+        sg.id = Models.id();
+        for (const opp of sg.opportunities) opp.id = Models.id();
+      }
+    }
+    return copy;
+  }
+
+  /** "Name (copy)", or "Name (copy 2)", "(copy 3)"… if taken. */
+  static copyName(name, takenNames) {
+    const base = name.replace(/ \(copy(?: \d+)?\)$/, '');
+    const taken = new Set(takenNames);
+    let candidate = `${base} (copy)`;
+    for (let i = 2; taken.has(candidate); i++) candidate = `${base} (copy ${i})`;
+    return candidate;
+  }
+
   /** Fill project-level fields added after a project was saved. */
   static upgradeProject(project) {
     project.settings.defaultYears ??= Models.DEFAULT_YEARS;

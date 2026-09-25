@@ -61,7 +61,12 @@ export class ProjectView {
 
     this.root = el('div', { class: 'project-page' },
       el('div', { class: 'project-top' },
-        el('a', { href: '#/', class: 'back-link' }, icon('arrowLeft'), 'All projects'),
+        el('div', { class: 'project-top-row' },
+          el('a', { href: '#/', class: 'back-link' }, icon('arrowLeft'), 'All projects'),
+          el('button', {
+            type: 'button', class: 'btn duplicate-btn', title: 'Make a copy of this project',
+            onclick: () => this.duplicate(),
+          }, icon('copy'), 'Duplicate')),
         name),
       el('div', { class: 'settings-bar', role: 'group', 'aria-label': 'Project settings' },
         el('div', { class: 'settings-title' },
@@ -167,6 +172,15 @@ export class ProjectView {
     }
     this.strategyList.replaceChildren(...nodes);
     this.refreshIndividuals();
+  }
+
+  /** Save pending edits, copy this project under a new name, and open the copy. */
+  async duplicate() {
+    this.save.flush();
+    const names = (await this.storage.listProjects()).map((p) => p.name);
+    const copy = Models.cloneProject(this.project, Models.copyName(this.project.name, names));
+    await this.storage.saveProject(copy);
+    location.hash = `#/project/${encodeURIComponent(copy.id)}`;
   }
 
   /** Move the strategy at `index` up (-1) or down (+1), keeping it in view and focused. */
