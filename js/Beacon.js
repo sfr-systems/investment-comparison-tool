@@ -8,17 +8,16 @@ import { el } from './format.js';
  */
 export class Beacon {
   // [name, light-theme color, dark-theme color]
+  // Blues, purples and pinks only: green, amber and red are reserved for risk levels (see Risk).
+  // Ordered so neighbouring strategies contrast.
   static PALETTE = [
-    ['Crimson', '#c2413b', '#f07a72'],
-    ['Amber', '#b26f12', '#f2b64f'],
-    ['Emerald', '#1f8a5b', '#4fcf92'],
-    ['Azure', '#2766b0', '#6aa9ee'],
-    ['Violet', '#7048b8', '#a88af0'],
-    ['Teal', '#0e8585', '#45c9c4'],
-    ['Rose', '#c23c7a', '#f07ab0'],
-    ['Olive', '#6b7d1f', '#b5c95a'],
-    ['Indigo', '#3f4db8', '#8f98f5'],
-    ['Copper', '#a8552a', '#e8925f'],
+    ['Azure', '#2563b8', '#6aa9ee'],
+    ['Violet', '#7442c8', '#b08cf5'],
+    ['Cyan', '#0a7ea4', '#4cc6e8'],
+    ['Magenta', '#a8309a', '#e67fd6'],
+    ['Slate', '#56657a', '#a5b4c8'],
+    ['Indigo', '#3b3fa8', '#8e94f5'],
+    ['Plum', '#6e2f69', '#c98bc4'],
   ];
 
   static toRoman(n) {
