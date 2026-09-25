@@ -144,6 +144,13 @@ h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
   letter-spacing: 0.02em;
   box-shadow: inset 0 -2px 0 var(--gold);
 }
+.brand-scale { width: 23px; height: 23px; display: block; }
+.brand-scale .scale-frame { stroke: #f5efe2; }
+.brand-scale .scale-base { fill: #f5efe2; stroke: none; }
+.brand-scale .scale-pan-low { stroke: var(--gold); }
+.brand-scale .scale-pan-low .scale-bowl { fill: var(--gold); stroke: none; }
+.brand-scale .scale-pan-high { stroke: #a8c0ea; }
+.brand-scale .scale-pan-high .scale-bowl { fill: #a8c0ea; stroke: none; }
 .brand-name { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
 
 /* Theme switch */
