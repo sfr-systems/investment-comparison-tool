@@ -1,4 +1,4 @@
-import { el, numberInput, formatUSD, icon } from './format.js';
+import { el, numberInput, formatUSD, icon, setValidity } from './format.js';
 import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
@@ -37,12 +37,6 @@ export class OpportunityView {
     });
     individual.setAttribute('list', ctx.datalistId);
 
-    const years = numberInput({
-      value: opp.years, min: 1, integer: true, emptyAs: null,
-      message: 'Timespan must be a whole number of years ≥ 1',
-      'aria-label': 'Timespan (years)',
-      onValue: (n) => { opp.years = n; ctx.changed(); },
-    });
 
     this.pvEl = el('div', { class: 'pv-value' });
     this.breakdownEl = el('dl', { class: 'pv-breakdown' });
@@ -56,7 +50,9 @@ export class OpportunityView {
         }, icon('trash'))),
       el('div', { class: 'opp-meta' },
         this.field('Individual', individual),
-        this.field('Timespan (years)', years)),
+        el('div', { class: 'field' },
+          el('span', { class: 'field-label' }, 'Timespan'),
+          this.timespanSelector())),
       el('div', { class: 'opp-grid' },
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate'),
@@ -120,7 +116,43 @@ export class OpportunityView {
     return root;
   }
 
+  /** [Default (N yrs) | Custom] — default follows the project's default timespan. */
+  timespanSelector() {
+    const { opp, ctx } = this;
+    const years = numberInput({
+      value: opp.years, min: 1, integer: true, emptyAs: null,
+      message: 'Timespan must be a whole number of years ≥ 1',
+      'aria-label': 'Custom timespan (years)',
+      onValue: (n) => { opp.years = n; ctx.changed(); },
+    });
+    this.defaultYearsOption = el('option', { value: 'default' });
+    const select = el('select', {
+      'aria-label': 'Timespan',
+      onchange: () => {
+        opp.yearsMode = select.value;
+        if (opp.yearsMode === 'custom') {
+          // Start the custom value from the default the user was just seeing.
+          opp.years = Calculator.resolveYears({ yearsMode: 'default' }, ctx.project.settings);
+          years.value = String(opp.years);
+          setValidity(years, true);
+        }
+        root.classList.toggle('is-custom', opp.yearsMode === 'custom');
+        ctx.changed();
+      },
+    }, this.defaultYearsOption, el('option', { value: 'custom' }, 'Custom'));
+    select.value = opp.yearsMode === 'default' ? 'default' : 'custom';
+
+    const root = el('div', { class: 'rate-selector timespan-selector' },
+      select,
+      el('span', { class: 'rate-custom-wrap' }, years, el('span', { class: 'suffix' }, 'yrs')));
+    root.classList.toggle('is-custom', select.value === 'custom');
+    return root;
+  }
+
   update() {
+    const n = Calculator.resolveYears({ yearsMode: 'default' }, this.ctx.project.settings);
+    this.defaultYearsOption.textContent = `Default (${n} ${n === 1 ? 'yr' : 'yrs'})`;
+
     const b = Calculator.opportunityBreakdown(this.opp, this.ctx.project.settings);
     this.pvEl.textContent = formatUSD(b.total);
     this.pvEl.classList.toggle('negative', b.total < -0.005);

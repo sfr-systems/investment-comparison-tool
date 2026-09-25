@@ -4,11 +4,12 @@ import { Models } from './Models.js';
 export class SampleProject {
   static create() {
     const project = Models.project('Career Options');
-    project.settings = { discountRate: 5, sp500Rate: 10, loanRate: 5 };
+    Object.assign(project.settings, { discountRate: 5, sp500Rate: 10, loanRate: 5 });
 
     const indexFund = Models.opportunity('Index fund + part-time job');
     Object.assign(indexFund, {
       individual: 'Ann',
+      yearsMode: 'custom',
       years: 2,
       initial: { amount: 1000, rate: Models.rate('sp500') },
       salary: { amount: 1000, rate: Models.rate('custom', 3) },
@@ -17,6 +18,7 @@ export class SampleProject {
     const mba = Models.opportunity('MBA program');
     Object.assign(mba, {
       individual: 'Ben',
+      yearsMode: 'custom',
       years: 5,
       salary: { amount: 40000, rate: Models.rate('none') },
       loan: { amount: 60000, rate: Models.rate('loan') },

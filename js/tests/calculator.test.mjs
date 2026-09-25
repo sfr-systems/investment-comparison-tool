@@ -51,6 +51,20 @@ check('opportunity with invested initial payout',
 // Older saved opportunities without the field still calculate
 check('opportunity missing initialPayout', C.opportunityPV(opp, settings), -92.9705 + 1886.6213);
 
+// Default timespan: follows settings.defaultYears; custom (or older, unmarked) uses its own years
+const tsSettings = { discountRate: 10, sp500Rate: 0, loanRate: 0, defaultYears: 15 };
+const payoutOnly = (extra) => ({ years: 2, initial: { amount: 0 }, yearlyReturn: { amount: 0 },
+  salary: { amount: 0 }, payout: 1000, loan: { amount: 0 }, ...extra });
+check('years: default mode uses project default', C.resolveYears({ yearsMode: 'default', years: 2 }, tsSettings), 15);
+check('years: custom mode uses own value', C.resolveYears({ yearsMode: 'custom', years: 2 }, tsSettings), 2);
+check('years: unmarked (older) uses own value', C.resolveYears({ years: 2 }, tsSettings), 2);
+// Final payout 1000 at d=10%: n=15 → 1000/1.1^15 = 239.3920; after default changes to 2 → 826.4463
+check('default-timespan payout n=15', C.opportunityPV(payoutOnly({ yearsMode: 'default' }), tsSettings), 239.3920);
+check('default-timespan follows new default n=2',
+  C.opportunityPV(payoutOnly({ yearsMode: 'default' }), { ...tsSettings, defaultYears: 2 }), 826.4463);
+check('custom timespan ignores default',
+  C.opportunityPV(payoutOnly({ yearsMode: 'custom', years: 2 }), tsSettings), 826.4463);
+
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);
 check('sub group total', totals.total, 2 * (-92.9705 + 1886.6213));

@@ -18,6 +18,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
 - Discount rate (%), used for all PV calculations
 - Standard S&P 500 return (%, default 12)
 - Standard loan interest rate (%, default 5)
+- Default investment timespan (years, default 15)
 
 ## Strategy
 Editable title; add/delete sub groups.
@@ -29,7 +30,7 @@ Footer: PV subtotal per individual (plus "Unassigned"), then the sub group's tot
 ## Opportunity inputs
 - Title
 - Individual (free text, suggestions from names already used in the project)
-- Timespan n (years, integer ≥ 1)
+- Timespan n: [Default | Custom]. New opportunities use Default, which stays linked to the project's default timespan; Custom takes its own years (integer ≥ 1)
 - Loan amount + loan interest rate
 - Initial investment + growth rate
 - Initial payout (one-time), paid at start + option to invest it for the timespan at a growth rate

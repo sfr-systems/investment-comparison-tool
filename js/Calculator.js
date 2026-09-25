@@ -62,10 +62,16 @@ export class Calculator {
     }
   }
 
+  /** Timespan n: the project default when the opportunity follows it, else its own years. */
+  static resolveYears(opp, settings) {
+    const raw = opp.yearsMode === 'default' ? (settings.defaultYears ?? 15) : opp.years;
+    return Math.max(1, Math.floor(Number(raw) || 1));
+  }
+
   /** Breakdown of an opportunity's PV by component, plus the total. */
   static opportunityBreakdown(opp, settings) {
     const d = (Number(settings.discountRate) || 0) / 100;
-    const n = Math.max(1, Math.floor(Number(opp.years) || 1));
+    const n = Calculator.resolveYears(opp, settings);
     const rate = (r) => Calculator.resolveRate(r, settings);
     const parts = {
       initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, rate(opp.initial.rate), d, n),

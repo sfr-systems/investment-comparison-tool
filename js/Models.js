@@ -1,5 +1,7 @@
 /** Factories for the data model: Project → Strategy[] → SubGroup[] → Opportunity[]. */
 export class Models {
+  static DEFAULT_YEARS = 15;
+
   static id() {
     if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
@@ -15,7 +17,7 @@ export class Models {
       name: (name || '').trim() || 'Untitled Project',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      settings: { discountRate: 5, sp500Rate: 12, loanRate: 5 },
+      settings: { discountRate: 5, sp500Rate: 12, loanRate: 5, defaultYears: Models.DEFAULT_YEARS },
       strategies: [],
     };
   }
@@ -36,7 +38,17 @@ export class Models {
   /** Fill fields added after an opportunity was saved (older projects). */
   static upgradeOpportunity(opp) {
     opp.initialPayout ??= Models.initialPayout();
+    opp.yearsMode ??= 'custom'; // saved before default timespans existed: keep their years
     return opp;
+  }
+
+  /** Fill project-level fields added after a project was saved. */
+  static upgradeProject(project) {
+    project.settings.defaultYears ??= Models.DEFAULT_YEARS;
+    for (const st of project.strategies)
+      for (const sg of st.subGroups)
+        sg.opportunities.forEach(Models.upgradeOpportunity);
+    return project;
   }
 
   static opportunity(title = 'New Opportunity') {
@@ -44,7 +56,8 @@ export class Models {
       id: Models.id(),
       title,
       individual: '',
-      years: 1,
+      yearsMode: 'default', // 'default' follows project.settings.defaultYears; 'custom' uses `years`
+      years: Models.DEFAULT_YEARS,
       initial: { amount: 0, rate: Models.rate('sp500') },
       initialPayout: Models.initialPayout(),
       yearlyReturn: { amount: 0, rate: Models.rate('none') },

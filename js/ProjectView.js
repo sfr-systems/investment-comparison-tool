@@ -5,7 +5,7 @@ import { StrategyView } from './StrategyView.js';
 /** Project page: settings bar + stacked strategies. Owns saving and live recalculation. */
 export class ProjectView {
   constructor(project, storage) {
-    this.project = project;
+    this.project = Models.upgradeProject(project);
     this.storage = storage;
     this.children = [];
     this.save = debounce(() => {
@@ -41,16 +41,17 @@ export class ProjectView {
       oninput: () => { project.name = name.value.trim() || 'Untitled Project'; ctx.changed({ light: true }); },
     });
 
-    const setting = (label, key, hint) => el('label', { class: 'field setting' },
-      el('span', { class: 'field-label' }, label),
-      el('span', { class: 'with-suffix' },
-        numberInput({
-          value: s[key], greaterThan: -100, emptyAs: null,
-          message: 'Enter a rate greater than -100%', 'aria-label': label,
-          onValue: (n) => { s[key] = n; ctx.changed(); },
-        }),
-        el('span', { class: 'suffix' }, '%')),
-      hint && el('span', { class: 'hint' }, hint));
+    const rateRule = { greaterThan: -100, message: 'Enter a rate greater than -100%' };
+    const setting = (label, key, hint, { suffix = '%', rule = rateRule } = {}) =>
+      el('label', { class: 'field setting' },
+        el('span', { class: 'field-label' }, label),
+        el('span', { class: suffix.length > 1 ? 'with-suffix suffix-wide' : 'with-suffix' },
+          numberInput({
+            value: s[key], emptyAs: null, 'aria-label': label, ...rule,
+            onValue: (n) => { s[key] = n; ctx.changed(); },
+          }),
+          el('span', { class: 'suffix' }, suffix)),
+        hint && el('span', { class: 'hint' }, hint));
 
     this.datalist = el('datalist', { id: ctx.datalistId });
     this.strategyList = el('div', { class: 'strategy-list' });
@@ -67,7 +68,11 @@ export class ProjectView {
           el('span', {}, 'Applied to every opportunity')),
         setting('Discount rate', 'discountRate', 'Discounts all cash flows'),
         setting('S&P 500 return', 'sp500Rate', 'Linked standard rate'),
-        setting('Loan interest rate', 'loanRate', 'Linked standard rate')),
+        setting('Loan interest rate', 'loanRate', 'Linked standard rate'),
+        setting('Default investment timespan', 'defaultYears', 'Linked default timespan', {
+          suffix: 'yrs',
+          rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
+        })),
       this.saveError,
       this.datalist,
       this.strategyList,
