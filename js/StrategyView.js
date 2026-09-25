@@ -59,11 +59,8 @@ export class StrategyView {
     const beacon = Beacon.describe(strategy.beacon);
     this.root = el('section', { class: 'strategy' },
       el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
-        this.toggle,
-        Beacon.badge(strategy.beacon),
-        el('div', { class: 'strategy-heading' },
-          el('span', { class: 'beacon-caption' }, `Strategy ${beacon.numeral} · ${beacon.name}`),
-          title),
+        el('div', { class: 'strategy-rail' }, Beacon.badge(strategy.beacon), this.toggle),
+        title,
         el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
         el('button', {
           class: 'icon-btn danger', title: 'Delete strategy', 'aria-label': 'Delete strategy',

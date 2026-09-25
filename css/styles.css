@@ -589,25 +589,27 @@ input.project-title {
   pointer-events: none;
 }
 
+/* Left rail: beacon badge stacked above the collapse toggle */
+.strategy-rail { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 34px; }
 .beacon-badge {
   flex: none;
   display: grid;
   place-items: center;
-  min-width: 46px;
-  height: 46px;
-  padding: 0 10px;
-  border-radius: 13px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 7px;
+  border-radius: 10px;
   background:
     radial-gradient(120% 120% at 30% 20%, color-mix(in srgb, var(--beacon) 22%, var(--surface)) 0%,
       color-mix(in srgb, var(--beacon) 8%, var(--surface)) 70%);
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, var(--beacon) 55%, transparent),
-    inset 0 0 0 4px color-mix(in srgb, var(--surface) 70%, transparent),
-    inset 0 0 0 5px color-mix(in srgb, var(--beacon) 25%, transparent),
-    0 2px 8px -2px color-mix(in srgb, var(--beacon) 45%, transparent);
+    inset 0 0 0 3px color-mix(in srgb, var(--surface) 70%, transparent),
+    inset 0 0 0 4px color-mix(in srgb, var(--beacon) 25%, transparent),
+    0 2px 6px -2px color-mix(in srgb, var(--beacon) 45%, transparent);
   color: var(--beacon);
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -615,31 +617,12 @@ input.project-title {
   user-select: none;
 }
 
-.strategy-heading { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.beacon-caption {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--beacon);
-}
-.beacon-caption::before {
-  content: "";
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--beacon);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--beacon) 22%, transparent);
-}
 
 /* Carry the beacon color into every card inside the strategy */
 .strategy .opportunity { border-top: 3px solid color-mix(in srgb, var(--beacon) 75%, transparent); }
 .strategy.collapsed > .strategy-header { border-bottom-color: transparent; }
 input.strategy-title {
-  width: 100%;
+  flex: 1;
   font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 600;
@@ -844,10 +827,8 @@ input.strategy-title {
   .settings-bar { position: static; column-gap: 12px; padding: 14px; }
 
   .strategy-header { flex-wrap: wrap; }
-  .strategy-heading { flex: 1 1 50%; }
-  input.strategy-title { font-size: 19px; }
+  input.strategy-title { flex: 1 1 50%; font-size: 19px; }
   .strategy-header::after { right: 10px; top: 36px; font-size: 84px; }
-  .beacon-badge { min-width: 40px; height: 40px; font-size: 17px; }
   .header-total-wrap {
     order: 5;
     width: 100%;
