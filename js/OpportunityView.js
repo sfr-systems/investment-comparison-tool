@@ -2,6 +2,7 @@ import { el, numberInput, showPV, icon, setValidity } from './format.js';
 import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
+import { Risk } from './Risk.js';
 
 const BREAKDOWN_LABELS = {
   loan: 'Loan',
@@ -52,7 +53,10 @@ export class OpportunityView {
         this.field('Individual', individual),
         el('div', { class: 'field' },
           el('span', { class: 'field-label' }, 'Timespan'),
-          this.timespanSelector())),
+          this.timespanSelector()),
+        el('div', { class: 'field risk-field' },
+          el('span', { class: 'field-label' }, 'Risk'),
+          Risk.toggle(opp, () => ctx.changed()))),
       el('div', { class: 'opp-grid' },
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate'),

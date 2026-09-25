@@ -9,6 +9,7 @@ export class SampleProject {
     const indexFund = Models.opportunity('Index fund + part-time job');
     Object.assign(indexFund, {
       individual: 'Ann',
+      risk: 'low',
       yearsMode: 'custom',
       years: 2,
       initial: { amount: 1000, rate: Models.rate('sp500') },
@@ -18,6 +19,7 @@ export class SampleProject {
     const mba = Models.opportunity('MBA program');
     Object.assign(mba, {
       individual: 'Ben',
+      risk: 'high',
       yearsMode: 'custom',
       years: 5,
       salary: { amount: 40000, rate: Models.rate('none') },

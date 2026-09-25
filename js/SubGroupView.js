@@ -2,6 +2,7 @@ import { el, formatUSD, showPV, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { OpportunityView } from './OpportunityView.js';
+import { Risk } from './Risk.js';
 
 /** Collapsible sub group: opportunities + per-individual PV footer. */
 export class SubGroupView {
@@ -31,6 +32,7 @@ export class SubGroupView {
     }, icon('chevron'));
 
     this.headerTotal = el('span', { class: 'header-total' });
+    this.riskEl = Risk.indicator('risk-compact');
     this.list = el('div', { class: 'opportunity-list' });
     this.footer = el('div', { class: 'subgroup-totals' });
 
@@ -51,7 +53,7 @@ export class SubGroupView {
 
     this.root = el('section', { class: 'subgroup' },
       el('header', { class: 'subgroup-header' },
-        this.toggle, title, this.headerTotal,
+        this.toggle, title, this.riskEl, this.headerTotal,
         el('button', {
           class: 'icon-btn danger', title: 'Delete sub group', 'aria-label': 'Delete sub group',
           onclick: () => this.onDelete(),
@@ -81,6 +83,7 @@ export class SubGroupView {
     this.children.forEach((c) => c.update());
     const { byIndividual, total } = Calculator.subGroupTotals(this.sg, this.ctx.project.settings);
     showPV(this.headerTotal, total);
+    Risk.render(this.riskEl, this.sg.opportunities);
     const amount = (pv) => showPV(el('span', { class: pv < -0.005 ? 'negative' : '' }), pv);
     const rows = [el('div', { class: 'eyebrow totals-caption' }, 'Present value by individual')];
     rows.push(...byIndividual.map(([name, pv]) =>

@@ -38,6 +38,7 @@ export class Models {
   /** Fill fields added after an opportunity was saved (older projects). */
   static upgradeOpportunity(opp) {
     opp.initialPayout ??= Models.initialPayout();
+    opp.risk ??= 'neutral';
     opp.yearsMode ??= 'custom'; // saved before default timespans existed: keep their years
     return opp;
   }
@@ -57,6 +58,7 @@ export class Models {
       id: Models.id(),
       title,
       individual: '',
+      risk: 'neutral', // 'low' | 'neutral' | 'high' (see Risk)
       yearsMode: 'default', // 'default' follows project.settings.defaultYears; 'custom' uses `years`
       years: Models.DEFAULT_YEARS,
       initial: { amount: 0, rate: Models.rate('sp500') },

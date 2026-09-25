@@ -29,6 +29,7 @@ Footer: PV subtotal per individual (plus "Unassigned"), then the sub group's tot
 
 ## Opportunity inputs
 - Title
+- Risk: [Low | Neutral | High] toggle, default Neutral
 - Individual (free text, suggestions from names already used in the project)
 - Timespan n: [Default | Custom]. New opportunities use Default, which stays linked to the project's default timespan; Custom takes its own years (integer ≥ 1)
 - Loan amount + loan interest rate
@@ -62,7 +63,7 @@ validate inputs (non-negative amounts, n ≥ 1).
 
 ## Implementation notes
 - Run: `python3 -m http.server 8000` → http://localhost:8000
-- Calculator tests: `node js/tests/calculator.test.mjs`; display rounding tests: `node js/tests/format.test.mjs`
+- Calculator tests: `node js/tests/calculator.test.mjs`; display rounding tests: `node js/tests/format.test.mjs`; risk tests: `node js/tests/risk.test.mjs`
 - Rates are stored as `{ mode: 'sp500' | 'loan' | 'custom' | 'none', custom: <percent> }` and resolved against project settings at calc time, so standard options stay linked.
 - Persistence goes through `Storage`, which wraps an adapter (`LocalStorageAdapter`). Swap the adapter for a backend later.
 - Styling: tokens in `css/styles.css` `:root` (light + dark). Fonts Inter + Source Serif 4 load from Google Fonts and fall back to system fonts offline. Icons are inline SVGs via `icon()` in `js/format.js`.
@@ -71,3 +72,4 @@ validate inputs (non-negative amounts, n ≥ 1).
 - Assumption notes (S&P and prime-rate 15-yr averages, current prime rate, Treasury yield) live in `js/referenceRates.js`. They are display-only; refresh the figures and `asOf` date periodically.
 - Strategies show a beacon: a Roman numeral + named color (`js/Beacon.js`) used only as a visual/spoken reference. It is positional (I, II, III… in list order) and not stored; the 10 colors cycle after X.
 - PV display: amounts are rounded for readability (`formatPV` in `js/format.js`: nearest power of ten ≤ 0.1% of the value; whole dollars once that step ≥ $1), with the exact value on hover. Only each sub group's "Sub group total" row shows the exact amount.
+- Risk: `js/Risk.js` holds the opportunity toggle, gauge icon and aggregates. Sub group / strategy risk = unweighted average (Low 0, Neutral 1, High 2): < 2/3 Low, > 4/3 High, else Neutral; a bar shows the mix.

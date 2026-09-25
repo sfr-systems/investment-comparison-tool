@@ -3,6 +3,7 @@ import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { SubGroupView } from './SubGroupView.js';
 import { Beacon } from './Beacon.js';
+import { Risk } from './Risk.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
@@ -62,6 +63,9 @@ export class StrategyView {
       el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
         this.toggle,
         title,
+        this.riskWrap = el('span', { class: 'strategy-risk' },
+          el('span', { class: 'eyebrow' }, 'Overall risk'),
+          this.riskEl = Risk.indicator()),
         el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
         el('button', {
           class: 'icon-btn danger', title: 'Delete strategy', 'aria-label': 'Delete strategy',
@@ -87,6 +91,8 @@ export class StrategyView {
     this.children.forEach((c) => c.update());
     const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings);
     showPV(this.totalEl, total);
+    Risk.render(this.riskEl, this.strategy.subGroups.flatMap((sg) => sg.opportunities));
+    this.riskWrap.hidden = this.riskEl.hidden;
     this.totalEl.classList.toggle('negative', total < -0.005);
   }
 }
