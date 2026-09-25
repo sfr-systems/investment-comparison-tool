@@ -857,6 +857,37 @@ input.strategy-title {
 .subgroup-header .risk-compact .risk-bar { width: 52px; height: 4px; }
 
 .rate-selector { display: flex; gap: 6px; min-width: 0; }
+.rate-locked { display: none; }
+.rate-selector.is-locked > select,
+.rate-selector.is-locked > .rate-custom-wrap { display: none !important; }
+.rate-selector.is-locked > .rate-locked {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: not-allowed;
+}
+.indefinite-note {
+  margin: 0;
+  padding: 9px 11px;
+  border-radius: var(--radius-sm);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: var(--accent-soft);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.indefinite-note[hidden] { display: none; }
+.indefinite-note strong { color: var(--text); font-weight: 600; }
 .rate-selector select { flex: 1 1 auto; min-width: 0; }
 .rate-custom-wrap { display: none; flex: 0 0 84px; }
 .rate-selector.is-custom .rate-custom-wrap { display: flex; }

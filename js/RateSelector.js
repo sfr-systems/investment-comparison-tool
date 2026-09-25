@@ -39,9 +39,11 @@ export class RateSelector {
       onValue: (n) => { this.rate.custom = n; this.ctx.changed(); },
     });
 
+    this.lockedEl = el('span', { class: 'rate-locked' });
     this.root = el('div', { class: 'rate-selector' },
       this.select,
-      el('span', { class: 'rate-custom-wrap' }, this.customInput, el('span', { class: 'suffix' }, '%')));
+      el('span', { class: 'rate-custom-wrap' }, this.customInput, el('span', { class: 'suffix' }, '%')),
+      this.lockedEl);
     this.syncCustomVisibility();
     this.update();
     return this.root;
@@ -49,6 +51,19 @@ export class RateSelector {
 
   syncCustomVisibility() {
     this.root?.classList.toggle('is-custom', this.select.value === 'custom');
+  }
+
+  /**
+   * Lock the selector to a fixed rate described by `text` (null unlocks). The stored choice is
+   * kept, so it returns when unlocked.
+   */
+  setLocked(text) {
+    const locked = text != null;
+    this.root.classList.toggle('is-locked', locked);
+    this.select.disabled = locked;
+    this.customInput.disabled = locked;
+    this.lockedEl.textContent = locked ? text : '';
+    this.lockedEl.title = locked ? 'Fixed while the timespan is Indefinite' : '';
   }
 
   /** Refresh option labels with current project standard rates. */

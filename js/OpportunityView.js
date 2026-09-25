@@ -58,11 +58,12 @@ export class OpportunityView {
           el('span', { class: 'field-label' }, 'Risk'),
           Risk.toggle(opp, () => ctx.changed()))),
       el('div', { class: 'opp-grid' },
-        this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate'),
-        this.amountWithRate('Initial investment', opp.initial, 'Growth rate'),
+        this.indefiniteNote = el('p', { class: 'indefinite-note', hidden: true }),
+        this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate', 'loan'),
+        this.amountWithRate('Initial investment', opp.initial, 'Growth rate', 'lump'),
         this.initialPayoutGroup(opp.initialPayout),
-        this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate'),
-        this.amountWithRate('Yearly salary', opp.salary, 'Growth rate'),
+        this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate', 'stream'),
+        this.amountWithRate('Yearly salary', opp.salary, 'Growth rate', 'stream'),
         this.finalPayoutField = this.field('Final payout (one-time)',
           this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)'))),
       el('footer', { class: 'opp-footer' },
@@ -87,8 +88,10 @@ export class OpportunityView {
     return el('span', { class: 'with-prefix' }, el('span', { class: 'prefix' }, '$'), input);
   }
 
-  amountWithRate(label, group, rateLabel) {
+  /** kind: 'lump' (one-time growth), 'stream' (yearly growth) or 'loan' (interest rate). */
+  amountWithRate(label, group, rateLabel, kind) {
     const selector = new RateSelector(group.rate, this.ctx, { label: `${label} ${rateLabel.toLowerCase()}` });
+    selector.kind = kind;
     this.rateSelectors.push(selector);
     return el('div', { class: 'field-group' },
       this.field(label, this.amountInput(group.amount, (n) => { group.amount = n; }, label)),
@@ -101,11 +104,12 @@ export class OpportunityView {
   initialPayoutGroup(group) {
     const label = 'Initial payout (one-time)';
     const selector = new RateSelector(group.rate, this.ctx, { label: `${label} growth rate` });
+    selector.kind = 'lump';
     this.rateSelectors.push(selector);
 
     const root = el('div', { class: 'field-group payout-group' });
     const sync = () => root.classList.toggle('is-invested', !!group.invest);
-    const checkbox = el('input', {
+    const checkbox = this.payoutCheckbox = el('input', {
       type: 'checkbox',
       checked: !!group.invest,
       onchange: () => { group.invest = checkbox.checked; sync(); this.ctx.changed(); },
@@ -170,13 +174,30 @@ export class OpportunityView {
     const payoutInput = this.finalPayoutField.querySelector('input');
     payoutInput.disabled = indefinite;
     this.finalPayoutField.title = indefinite ? 'Never received on an indefinite timespan' : '';
+
+    // Indefinite: growth rates are fixed (see Calculator.opportunityBreakdown) and explained.
+    const d = Number(this.ctx.project.settings.discountRate) || 0;
+    this.rateSelectors.forEach((r) => {
+      if (r.kind === 'lump') r.setLocked(indefinite ? `Discount rate (${d}%)` : null);
+      if (r.kind === 'stream') r.setLocked(indefinite ? 'None (held constant)' : null);
+    });
+    this.payoutCheckbox.disabled = indefinite;
+    this.indefiniteNote.hidden = !indefinite;
+    if (indefinite) {
+      this.indefiniteNote.replaceChildren(
+        el('strong', {}, 'Growth rates are fixed on an indefinite timespan. '),
+        'Any growth at or above the discount rate would make the present value infinite, so: '
+        + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
+        + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
+        + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.');
+    }
     const unbounded = Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => !Number.isFinite(b[key])).map(([, label]) => label.toLowerCase());
     this.warningEl.hidden = !unbounded.length;
     if (unbounded.length) {
-      this.warningEl.textContent = `Unbounded: the ${unbounded.join(' and ')} `
-        + `${unbounded.length > 1 ? 'grow' : 'grows'} at or above the discount rate forever, so the present `
-        + `value has no finite limit. Use a growth rate below the discount rate, or a set timespan.`;
+      this.warningEl.textContent = `Unbounded: with a discount rate of ${d}%, the ${unbounded.join(' and ')} `
+        + `${unbounded.length > 1 ? 'have' : 'has'} no finite present value when ${unbounded.length > 1 ? 'they continue' : 'it continues'} forever. `
+        + 'Use a discount rate above 0%, or a set timespan.';
     }
     this.breakdownEl.replaceChildren(...Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => Math.abs(b[key]) >= 0.005)

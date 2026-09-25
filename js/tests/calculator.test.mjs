@@ -100,6 +100,23 @@ const indefOpp = {
 // 40000/0.07 + (60000 − 60000·0.05/0.07) = 571428.5714 + 17142.8571
 check('opportunity indefinite', C.opportunityPV(indefOpp, indefSettings), 40000 / 0.07 + 60000 - 60000 * 0.05 / 0.07);
 check('resolveYears indefinite', C.resolveYears({ yearsMode: 'indefinite' }, indefSettings), Infinity);
+// Indefinite ignores entered growth: streams are constant perpetuities, lump sums grow at d
+const growthOpp = {
+  ...indefOpp, payout: 0, loan: { amount: 0, rate: { mode: 'loan' } },
+  salary: { amount: 40000, rate: { mode: 'sp500' } },            // 12% entered → treated as 0
+  initial: { amount: 10000, rate: { mode: 'sp500' } },           // 12% entered → grows at d → PV 0
+  initialPayout: { amount: 5000, invest: true, rate: { mode: 'custom', custom: 30 } }, // → worth P
+};
+const gb = C.opportunityBreakdown(growthOpp, indefSettings);
+check('indefinite salary ignores 12% growth → 40000/0.07', gb.salary, 40000 / 0.07);
+check('indefinite investment grows at d → 0', gb.initial, 0);
+check('indefinite invested payout grows at d → P', gb.initialPayout, 5000);
+check('indefinite total finite', gb.total, 40000 / 0.07 + 5000);
+check('indefinite at 0% discount still unbounded', C.opportunityPV(growthOpp, { ...indefSettings, discountRate: 0 }), Infinity);
+// Set timespans still honour entered growth
+check('finite timespan keeps entered growth',
+  C.opportunityBreakdown({ ...growthOpp, yearsMode: 'custom', years: 2 }, indefSettings).salary,
+  40000 / 1.07 + 40000 * 1.12 / 1.07 ** 2);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);

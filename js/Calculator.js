@@ -93,17 +93,25 @@ export class Calculator {
     return Math.max(1, Math.floor(Number(raw) || 1));
   }
 
-  /** Breakdown of an opportunity's PV by component, plus the total. */
+  /**
+   * Breakdown of an opportunity's PV by component, plus the total.
+   * On an indefinite timespan the entered growth rates are set aside so the PV stays finite:
+   * one-time amounts (initial investment, invested initial payout) grow at the discount rate,
+   * holding their value, and yearly return / salary don't grow (constant perpetuity C / d).
+   */
   static opportunityBreakdown(opp, settings) {
     const d = (Number(settings.discountRate) || 0) / 100;
     const n = Calculator.resolveYears(opp, settings);
     const rate = (r) => Calculator.resolveRate(r, settings);
+    const indefinite = n === Infinity;
+    const lumpGrowth = (r) => (indefinite ? d : rate(r));
+    const streamGrowth = (r) => (indefinite ? 0 : rate(r));
     const parts = {
-      initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, rate(opp.initial.rate), d, n),
+      initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, lumpGrowth(opp.initial.rate), d, n),
       initialPayout: Calculator.initialPayoutPV(+opp.initialPayout?.amount || 0,
-        !!opp.initialPayout?.invest, rate(opp.initialPayout?.rate), d, n),
-      yearlyReturn: Calculator.growingAnnuityPV(+opp.yearlyReturn.amount || 0, rate(opp.yearlyReturn.rate), d, n),
-      salary: Calculator.growingAnnuityPV(+opp.salary.amount || 0, rate(opp.salary.rate), d, n),
+        !!opp.initialPayout?.invest, lumpGrowth(opp.initialPayout?.rate), d, n),
+      yearlyReturn: Calculator.growingAnnuityPV(+opp.yearlyReturn.amount || 0, streamGrowth(opp.yearlyReturn.rate), d, n),
+      salary: Calculator.growingAnnuityPV(+opp.salary.amount || 0, streamGrowth(opp.salary.rate), d, n),
       payout: Calculator.payoutPV(+opp.payout || 0, d, n),
       loan: Calculator.loanPV(+opp.loan.amount || 0, rate(opp.loan.rate), d, n),
     };
