@@ -1,3 +1,5 @@
+import { Beacon } from './Beacon.js';
+
 /** Factories for the data model: Project → Strategy[] → SubGroup[] → Opportunity[]. */
 export class Models {
   static DEFAULT_YEARS = 15;
@@ -22,8 +24,9 @@ export class Models {
     };
   }
 
-  static strategy(title = 'New Strategy') {
-    return { id: Models.id(), title, collapsed: false, subGroups: [] };
+  /** `beacon` is the strategy's Roman-numeral/color reference number (see Beacon). */
+  static strategy(title = 'New Strategy', beacon = 1) {
+    return { id: Models.id(), title, beacon, collapsed: false, subGroups: [] };
   }
 
   static subGroup(title = 'New Sub Group') {
@@ -45,6 +48,7 @@ export class Models {
   /** Fill project-level fields added after a project was saved. */
   static upgradeProject(project) {
     project.settings.defaultYears ??= Models.DEFAULT_YEARS;
+    for (const st of project.strategies) st.beacon ??= Beacon.next(project);
     for (const st of project.strategies)
       for (const sg of st.subGroups)
         sg.opportunities.forEach(Models.upgradeOpportunity);

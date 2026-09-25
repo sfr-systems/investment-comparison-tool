@@ -2,6 +2,7 @@ import { el, formatUSD, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { SubGroupView } from './SubGroupView.js';
+import { Beacon } from './Beacon.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
@@ -55,9 +56,14 @@ export class StrategyView {
       },
     }, icon('plus'), 'Add sub group'));
 
+    const beacon = Beacon.describe(strategy.beacon);
     this.root = el('section', { class: 'strategy' },
-      el('header', { class: 'strategy-header' },
-        this.toggle, title,
+      el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
+        this.toggle,
+        Beacon.badge(strategy.beacon),
+        el('div', { class: 'strategy-heading' },
+          el('span', { class: 'beacon-caption' }, `Strategy ${beacon.numeral} · ${beacon.name}`),
+          title),
         el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
         el('button', {
           class: 'icon-btn danger', title: 'Delete strategy', 'aria-label': 'Delete strategy',
@@ -65,6 +71,7 @@ export class StrategyView {
         }, icon('trash'))),
       body);
 
+    Beacon.paint(this.root, strategy.beacon);
     this.syncCollapsed();
     this.update();
     return this.root;
