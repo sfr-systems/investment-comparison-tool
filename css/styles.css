@@ -593,6 +593,10 @@ input.project-title {
   background: linear-gradient(100deg, color-mix(in srgb, var(--beacon) 9%, var(--surface)) 0%, var(--surface) 60%);
 }
 .strategy-header > * { position: relative; z-index: 1; }
+.strategy-header { cursor: pointer; }
+.strategy-header input,
+.strategy-header .risk-indicator { cursor: auto; }
+.strategy-header:hover .collapse-btn { background: var(--surface-3); color: var(--text); }
 /* Oversized numeral watermark */
 .strategy-header::after {
   content: attr(data-numeral);
@@ -683,8 +687,15 @@ input.project-title {
 /* Carry the beacon color into every card inside the strategy */
 .strategy .opportunity { border-top: 3px solid color-mix(in srgb, var(--beacon) 75%, transparent); }
 .strategy.collapsed > .strategy-header { border-bottom-color: transparent; }
+/* Sized to its text so the rest of the header is click-to-toggle space */
 input.strategy-title {
-  flex: 1;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 8ch;
+  max-width: 100%;
+  margin-right: auto;
+  field-sizing: content;
+  padding-right: 14px;
   font-family: var(--font-serif);
   font-size: 22px;
   font-weight: 600;
@@ -1011,7 +1022,7 @@ input:disabled { cursor: not-allowed; }
   .settings-bar { position: static; column-gap: 12px; padding: 14px; }
 
   .strategy-header { flex-wrap: wrap; }
-  input.strategy-title { flex: 1 1 50%; font-size: 19px; }
+  input.strategy-title { font-size: 19px; }
   .strategy-header::after { display: none; }
   .header-total-wrap {
     order: 5;

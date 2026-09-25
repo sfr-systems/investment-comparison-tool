@@ -23,16 +23,22 @@ export class StrategyView {
     const title = el('input', {
       type: 'text', class: 'title-input strategy-title', value: strategy.title,
       placeholder: 'Strategy title', 'aria-label': 'Strategy title',
-      oninput: () => { strategy.title = title.value; ctx.changed({ light: true }); },
+      oninput: () => { strategy.title = title.value; fitTitle(); ctx.changed({ light: true }); },
     });
+    // Browsers without CSS field-sizing: approximate a content-width box via `size`.
+    const fitTitle = () => {
+      if (!CSS.supports('field-sizing', 'content')) title.size = Math.max(title.value.length, 8) + 1;
+    };
+    fitTitle();
 
+    const toggleCollapsed = () => {
+      strategy.collapsed = !strategy.collapsed;
+      this.syncCollapsed();
+      ctx.changed({ light: true });
+    };
     this.toggle = el('button', {
       class: 'icon-btn collapse-btn', 'aria-label': 'Toggle strategy',
-      onclick: () => {
-        strategy.collapsed = !strategy.collapsed;
-        this.syncCollapsed();
-        ctx.changed({ light: true });
-      },
+      onclick: toggleCollapsed,
     }, icon('chevron'));
 
     this.totalEl = el('span', { class: 'header-total' });
@@ -62,7 +68,16 @@ export class StrategyView {
 
     const beacon = Beacon.describe(this.position);
     this.root = el('section', { class: 'strategy' },
-      el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
+      el('header', {
+        class: 'strategy-header',
+        dataset: { numeral: beacon.numeral },
+        // The whole header toggles, except its controls (title input, delete, the arrow itself).
+        onclick: (e) => {
+          if (e.target.closest('input, button, a, select, textarea')) return;
+          if (window.getSelection()?.toString()) return; // don't toggle after selecting text
+          toggleCollapsed();
+        },
+      },
         this.toggle,
         title,
         this.riskWrap = el('span', { class: 'strategy-risk' },
