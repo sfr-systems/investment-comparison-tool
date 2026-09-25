@@ -13,8 +13,8 @@ export class Beacon {
   static PALETTE = [
     ['Azure', '#2563b8', '#6aa9ee'],
     ['Violet', '#7442c8', '#b08cf5'],
+    ['Hot pink', '#d12f7a', '#ff69b4'],
     ['Cyan', '#0a7ea4', '#4cc6e8'],
-    ['Magenta', '#a8309a', '#e67fd6'],
     ['Slate', '#56657a', '#a5b4c8'],
     ['Indigo', '#3b3fa8', '#8e94f5'],
     ['Plum', '#6e2f69', '#c98bc4'],
