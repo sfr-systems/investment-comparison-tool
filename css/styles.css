@@ -598,9 +598,9 @@ input.project-title {
   content: attr(data-numeral);
   position: absolute;
   top: 50%;
-  right: 24%;
+  left: 52%;
   z-index: 0;
-  transform: translateY(-50%) rotate(-6deg);
+  transform: translate(-50%, -50%) rotate(-6deg);
   font-family: var(--font-serif);
   font-size: 118px;
   font-weight: 600;
@@ -1012,7 +1012,7 @@ input:disabled { cursor: not-allowed; }
 
   .strategy-header { flex-wrap: wrap; }
   input.strategy-title { flex: 1 1 50%; font-size: 19px; }
-  .strategy-header::after { right: 10px; top: 36px; font-size: 84px; }
+  .strategy-header::after { display: none; }
   .header-total-wrap {
     order: 5;
     width: 100%;
