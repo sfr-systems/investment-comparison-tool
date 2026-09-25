@@ -1,0 +1,44 @@
+/** Factories for the data model: Project → Strategy[] → SubGroup[] → Opportunity[]. */
+export class Models {
+  static id() {
+    if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+
+  static rate(mode = 'none', custom = 0) {
+    return { mode, custom };
+  }
+
+  static project(name) {
+    return {
+      id: Models.id(),
+      name: (name || '').trim() || 'Untitled Project',
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      settings: { discountRate: 5, sp500Rate: 12, loanRate: 5 },
+      strategies: [],
+    };
+  }
+
+  static strategy(title = 'New Strategy') {
+    return { id: Models.id(), title, collapsed: false, subGroups: [] };
+  }
+
+  static subGroup(title = 'New Sub Group') {
+    return { id: Models.id(), title, collapsed: false, opportunities: [] };
+  }
+
+  static opportunity(title = 'New Opportunity') {
+    return {
+      id: Models.id(),
+      title,
+      individual: '',
+      years: 1,
+      initial: { amount: 0, rate: Models.rate('sp500') },
+      yearlyReturn: { amount: 0, rate: Models.rate('none') },
+      salary: { amount: 0, rate: Models.rate('none') },
+      payout: 0,
+      loan: { amount: 0, rate: Models.rate('loan') },
+    };
+  }
+}

@@ -1,0 +1,105 @@
+const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+
+export function formatUSD(value) {
+  const v = Math.abs(value) < 0.005 ? 0 : value; // avoid "-$0.00"
+  return usd.format(v);
+}
+
+export function formatPct(value) {
+  return `${Number(value) || 0}%`;
+}
+
+/**
+ * Tiny DOM builder: el('div', { class: 'x', onclick: fn }, child, 'text').
+ * Keys starting with "on" become listeners; `dataset` and `style` objects are merged.
+ */
+export function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(attrs || {})) {
+    if (value == null || value === false) continue;
+    if (key.startsWith('on') && typeof value === 'function') {
+      node.addEventListener(key.slice(2).toLowerCase(), value);
+    } else if (key === 'dataset' || key === 'style') {
+      Object.assign(node[key], value);
+    } else if (key in node && key !== 'list') {
+      node[key] = value;
+    } else {
+      node.setAttribute(key, value === true ? '' : value);
+    }
+  }
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    node.append(child instanceof Node ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+export function debounce(fn, ms) {
+  let timer = null;
+  const debounced = (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => { timer = null; fn(...args); }, ms);
+  };
+  debounced.flush = () => {
+    if (timer) { clearTimeout(timer); timer = null; fn(); }
+  };
+  return debounced;
+}
+
+export function confirmDelete(kind, name) {
+  return window.confirm(`Delete ${kind} "${name || 'Untitled'}"? This cannot be undone.`);
+}
+
+/** Mark a field invalid with a message, or clear it. Returns `ok`. */
+export function setValidity(input, ok, message = '') {
+  input.classList.toggle('invalid', !ok);
+  input.setAttribute('aria-invalid', String(!ok));
+  input.title = ok ? '' : message;
+  return ok;
+}
+
+/**
+ * Validated number input. Calls onValue(number) only when the value passes:
+ *   min (inclusive), greaterThan (exclusive), integer, emptyAs (value used when blank; null = blank invalid).
+ */
+export function numberInput({ value, min, greaterThan, integer = false, emptyAs = 0,
+  step = 'any', message = 'Invalid value', onValue, ...attrs }) {
+  const input = el('input', { type: 'number', step, inputMode: 'decimal', value: value ?? '', ...attrs });
+  if (min != null) input.min = min;
+  const validate = () => {
+    const raw = input.value.trim();
+    let n = raw === '' ? emptyAs : Number(raw);
+    let ok = n != null && Number.isFinite(n) && !input.validity.badInput;
+    if (ok && min != null && n < min) ok = false;
+    if (ok && greaterThan != null && n <= greaterThan) ok = false;
+    if (ok && integer && !Number.isInteger(n)) ok = false;
+    if (setValidity(input, ok, message)) onValue(n);
+  };
+  input.addEventListener('input', validate);
+  return input;
+}
+
+const ICON_PATHS = {
+  chevron: '<path d="M6 9l6 6 6-6"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2l1-12M9 7V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  arrowLeft: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  arrowRight: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
+  moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
+};
+
+/** Inline stroke icon (decorative; pair with a text label or aria-label). */
+export function icon(name, className = '') {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.8');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', `icon ${className}`.trim());
+  svg.innerHTML = ICON_PATHS[name];
+  return svg;
+}
