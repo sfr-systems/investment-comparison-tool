@@ -509,6 +509,25 @@ input.project-title {
 .settings-title strong { font-size: 14.5px; font-weight: 600; }
 .settings-title span:last-child { font-size: 12.5px; color: var(--muted); }
 .setting .hint { font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+/* One-line notes with a "more…" toggle */
+.note { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.note-text { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.note.is-open { display: block; }
+.note.is-open .note-text { white-space: normal; overflow: visible; }
+.note.is-open .note-toggle { margin-left: 4px; }
+.note:not(.is-truncated):not(.is-open) .note-toggle { display: none; }
+.note-toggle {
+  flex: none;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+}
+.note-toggle:hover { text-decoration: underline; text-underline-offset: 2px; }
+
 .settings-note {
   grid-column: 1 / -1;
   margin: 8px 0 0;
@@ -843,6 +862,7 @@ input.strategy-title {
   .subgroup-body { grid-template-columns: 1fr; padding: 12px; }
   .opportunity-list { grid-template-columns: 1fr; }
   .field-group { grid-template-columns: 1fr; }
+  .opp-meta { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {

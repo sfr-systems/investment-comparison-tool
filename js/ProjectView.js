@@ -52,7 +52,7 @@ export class ProjectView {
             onValue: (n) => { s[key] = n; ctx.changed(); },
           }),
           el('span', { class: 'suffix' }, suffix)),
-        hint && el('span', { class: 'hint' }, hint));
+        hint && this.expandableNote('hint', hint));
 
     this.datalist = el('datalist', { id: ctx.datalistId });
     this.strategyList = el('div', { class: 'strategy-list' });
@@ -80,7 +80,7 @@ export class ProjectView {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
         }),
-        el('p', { class: 'settings-note' },
+        this.expandableNote('settings-note',
           `Reference figures as of ${REF.asOf}, for context only; they don't change your inputs. Sources: `,
           ...REF.sources.flatMap((src, i) => [
             i ? ', ' : '',
@@ -101,6 +101,37 @@ export class ProjectView {
     this.watchSettingsBar();
     this.renderStrategies();
     return this.root;
+  }
+
+  /**
+   * A note shown on one line; when it doesn't fit, it ends in "…" with a "more…" toggle
+   * that expands it in place.
+   */
+  expandableNote(className, ...content) {
+    const text = el('span', { class: 'note-text' }, ...content);
+    const toggle = el('button', {
+      type: 'button',
+      class: 'note-toggle',
+      'aria-expanded': 'false',
+      onclick: (e) => {
+        e.preventDefault(); // notes sit inside <label>s; don't focus the input
+        const open = !root.classList.contains('is-open');
+        root.classList.toggle('is-open', open);
+        toggle.textContent = open ? 'less' : 'more…';
+        toggle.setAttribute('aria-expanded', String(open));
+      },
+    }, 'more…');
+    const root = el('span', { class: `note ${className}` }, text, toggle);
+    // Only offer "more…" when the single line is actually cut off.
+    const measure = () => {
+      if (!root.classList.contains('is-open')) {
+        root.classList.toggle('is-truncated', text.scrollWidth > text.clientWidth + 1);
+      }
+    };
+    this.noteObserver ??= new ResizeObserver((entries) => entries.forEach((en) => en.target.measure()));
+    text.measure = measure;
+    this.noteObserver.observe(text);
+    return root;
   }
 
   /** Hide the Assumptions notes while the bar is pinned to the top, so it stays compact. */
@@ -156,6 +187,7 @@ export class ProjectView {
   destroy() {
     this.save.flush();
     this.stickyObserver?.disconnect();
+    this.noteObserver?.disconnect();
     window.removeEventListener('pagehide', this.onPageHide);
   }
 }
