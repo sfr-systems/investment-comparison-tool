@@ -58,7 +58,7 @@ export class OpportunityView {
           el('span', { class: 'field-label' }, 'Risk'),
           Risk.toggle(opp, () => ctx.changed()))),
       el('div', { class: 'opp-grid' },
-        this.indefiniteNote = el('p', { class: 'indefinite-note', hidden: true }),
+        this.indefiniteNote = el('p', { class: 'indefinite-note', role: 'note', hidden: true }),
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate', 'loan'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate', 'lump'),
         this.initialPayoutGroup(opp.initialPayout),
@@ -185,11 +185,13 @@ export class OpportunityView {
     this.indefiniteNote.hidden = !indefinite;
     if (indefinite) {
       this.indefiniteNote.replaceChildren(
-        el('strong', {}, 'Growth rates are fixed on an indefinite timespan. '),
-        'Any growth at or above the discount rate would make the present value infinite, so: '
-        + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
-        + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
-        + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.');
+        icon('alert', 'note-icon'),
+        el('span', {},
+          el('strong', {}, 'Growth rates below are fixed on an indefinite timespan. '),
+          'Any growth at or above the discount rate would make the present value infinite, so '
+          + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
+          + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
+          + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.'));
     }
     const unbounded = Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => !Number.isFinite(b[key])).map(([, label]) => label.toLowerCase());

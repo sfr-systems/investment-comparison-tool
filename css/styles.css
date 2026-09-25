@@ -867,27 +867,36 @@ input.strategy-title {
   min-width: 0;
   height: 36px;
   padding: 0 10px;
-  border: 1px dashed var(--border-strong);
+  gap: 7px;
+  border: 1px dashed color-mix(in srgb, var(--risk-neutral) 60%, transparent);
   border-radius: var(--radius-sm);
-  color: var(--muted);
+  background: color-mix(in srgb, var(--risk-neutral) 8%, var(--surface));
+  color: var(--text-2);
   font-size: 13px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: not-allowed;
 }
+.rate-locked .icon { width: 14px; height: 14px; color: var(--risk-neutral); }
+.rate-locked span { overflow: hidden; text-overflow: ellipsis; }
 .indefinite-note {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
   margin: 0;
-  padding: 9px 11px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--risk-neutral) 45%, transparent);
+  border-left-width: 4px;
   border-radius: var(--radius-sm);
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border));
-  background: var(--accent-soft);
+  background: color-mix(in srgb, var(--risk-neutral) 12%, var(--surface));
   color: var(--text-2);
   font-size: 12px;
   line-height: 1.5;
 }
 .indefinite-note[hidden] { display: none; }
 .indefinite-note strong { color: var(--text); font-weight: 600; }
+.indefinite-note .note-icon { width: 18px; height: 18px; margin-top: 1px; color: var(--risk-neutral); }
 .rate-selector select { flex: 1 1 auto; min-width: 0; }
 .rate-custom-wrap { display: none; flex: 0 0 84px; }
 .rate-selector.is-custom .rate-custom-wrap { display: flex; }

@@ -1,4 +1,4 @@
-import { el, numberInput, formatPct } from './format.js';
+import { el, numberInput, formatPct, icon } from './format.js';
 
 /**
  * Rate picker: [S&P 500 | Standard loan | Custom % | None].
@@ -62,7 +62,7 @@ export class RateSelector {
     this.root.classList.toggle('is-locked', locked);
     this.select.disabled = locked;
     this.customInput.disabled = locked;
-    this.lockedEl.textContent = locked ? text : '';
+    this.lockedEl.replaceChildren(...(locked ? [icon('alert'), el('span', {}, text)] : []));
     this.lockedEl.title = locked ? 'Fixed while the timespan is Indefinite' : '';
   }
 
