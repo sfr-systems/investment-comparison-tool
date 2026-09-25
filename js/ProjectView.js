@@ -104,8 +104,8 @@ export class ProjectView {
   }
 
   /**
-   * A note shown on one line; when it doesn't fit, it ends in "…" with a "more…" toggle
-   * that expands it in place.
+   * A note shown on one line; when it doesn't fit, it ends in "…" with a "+" toggle
+   * that expands it in place ("−" collapses it).
    */
   expandableNote(className, ...content) {
     const text = el('span', { class: 'note-text' }, ...content);
@@ -113,16 +113,20 @@ export class ProjectView {
       type: 'button',
       class: 'note-toggle',
       'aria-expanded': 'false',
+      'aria-label': 'Show more',
+      title: 'Show more',
       onclick: (e) => {
         e.preventDefault(); // notes sit inside <label>s; don't focus the input
         const open = !root.classList.contains('is-open');
         root.classList.toggle('is-open', open);
-        toggle.textContent = open ? 'less' : 'more…';
+        toggle.textContent = open ? '−' : '+';
         toggle.setAttribute('aria-expanded', String(open));
+        toggle.setAttribute('aria-label', open ? 'Show less' : 'Show more');
+        toggle.title = open ? 'Show less' : 'Show more';
       },
-    }, 'more…');
+    }, '+');
     const root = el('span', { class: `note ${className}` }, text, toggle);
-    // Only offer "more…" when the single line is actually cut off.
+    // Only offer "+" when the single line is actually cut off.
     const measure = () => {
       if (!root.classList.contains('is-open')) {
         root.classList.toggle('is-truncated', text.scrollWidth > text.clientWidth + 1);
