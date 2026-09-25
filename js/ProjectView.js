@@ -69,7 +69,7 @@ export class ProjectView {
         setting('Discount rate', 'discountRate', 'Discounts all cash flows'),
         setting('S&P 500 return', 'sp500Rate', 'Linked standard rate'),
         setting('Loan interest rate', 'loanRate', 'Linked standard rate'),
-        setting('Default investment timespan', 'defaultYears', 'Linked default timespan', {
+        setting('Default timespan', 'defaultYears', 'Linked default timespan', {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
         })),

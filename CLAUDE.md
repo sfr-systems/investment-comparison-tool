@@ -18,7 +18,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
 - Discount rate (%), used for all PV calculations
 - Standard S&P 500 return (%, default 12)
 - Standard loan interest rate (%, default 5)
-- Default investment timespan (years, default 15)
+- Default timespan (years, default 15)
 
 ## Strategy
 Editable title; add/delete sub groups.
