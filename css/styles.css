@@ -598,7 +598,7 @@ input.project-title {
   content: attr(data-numeral);
   position: absolute;
   top: 50%;
-  left: 52%;
+  left: 50%;
   z-index: 0;
   transform: translate(-50%, -50%) rotate(-6deg);
   font-family: var(--font-serif);
