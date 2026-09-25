@@ -28,6 +28,17 @@ export class Models {
     return { id: Models.id(), title, collapsed: false, opportunities: [] };
   }
 
+  /** Paid to the individual at t = 0; optionally invested until the end of the timespan. */
+  static initialPayout() {
+    return { amount: 0, invest: false, rate: Models.rate('sp500') };
+  }
+
+  /** Fill fields added after an opportunity was saved (older projects). */
+  static upgradeOpportunity(opp) {
+    opp.initialPayout ??= Models.initialPayout();
+    return opp;
+  }
+
   static opportunity(title = 'New Opportunity') {
     return {
       id: Models.id(),
@@ -35,6 +46,7 @@ export class Models {
       individual: '',
       years: 1,
       initial: { amount: 0, rate: Models.rate('sp500') },
+      initialPayout: Models.initialPayout(),
       yearlyReturn: { amount: 0, rate: Models.rate('none') },
       salary: { amount: 0, rate: Models.rate('none') },
       payout: 0,

@@ -9,6 +9,15 @@ export class Calculator {
     return -I + (I * Math.pow(1 + g, n)) / Math.pow(1 + d, n);
   }
 
+  /**
+   * One-time payout P received at the start (t = 0).
+   * Not invested: +P. Invested at g until year n: P(1+g)^n / (1+d)^n.
+   */
+  static initialPayoutPV(P, invested, g, d, n) {
+    if (!P) return 0;
+    return invested ? (P * Math.pow(1 + g, n)) / Math.pow(1 + d, n) : P;
+  }
+
   /** Σ C(1+g)^(t−1) / (1+d)^t — used for yearly return and yearly salary. */
   static growingAnnuityPV(C, g, d, n) {
     if (!C) return 0;
@@ -60,6 +69,8 @@ export class Calculator {
     const rate = (r) => Calculator.resolveRate(r, settings);
     const parts = {
       initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, rate(opp.initial.rate), d, n),
+      initialPayout: Calculator.initialPayoutPV(+opp.initialPayout?.amount || 0,
+        !!opp.initialPayout?.invest, rate(opp.initialPayout?.rate), d, n),
       yearlyReturn: Calculator.growingAnnuityPV(+opp.yearlyReturn.amount || 0, rate(opp.yearlyReturn.rate), d, n),
       salary: Calculator.growingAnnuityPV(+opp.salary.amount || 0, rate(opp.salary.rate), d, n),
       payout: Calculator.payoutPV(+opp.payout || 0, d, n),

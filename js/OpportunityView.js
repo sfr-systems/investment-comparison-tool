@@ -1,19 +1,21 @@
 import { el, numberInput, formatUSD, icon } from './format.js';
 import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
+import { Models } from './Models.js';
 
 const BREAKDOWN_LABELS = {
   initial: 'Investment',
+  initialPayout: 'Initial payout',
   yearlyReturn: 'Returns',
   salary: 'Salary',
-  payout: 'Payout',
+  payout: 'Payout at end',
   loan: 'Loan',
 };
 
 /** One opportunity card: inputs + live PV. */
 export class OpportunityView {
   constructor(opp, ctx, { onDelete }) {
-    this.opp = opp;
+    this.opp = Models.upgradeOpportunity(opp);
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.rateSelectors = [];
@@ -57,6 +59,7 @@ export class OpportunityView {
         this.field('Timespan (years)', years)),
       el('div', { class: 'opp-grid' },
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate'),
+        this.initialPayoutGroup(opp.initialPayout),
         this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate'),
         this.amountWithRate('Yearly salary', opp.salary, 'Growth rate'),
         this.field('One-time payout at end', this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'One-time payout at end')),
@@ -90,6 +93,31 @@ export class OpportunityView {
       el('div', { class: 'field' },
         el('span', { class: 'field-label' }, rateLabel),
         selector.render()));
+  }
+
+  /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
+  initialPayoutGroup(group) {
+    const label = 'Initial one-time payout';
+    const selector = new RateSelector(group.rate, this.ctx, { label: `${label} growth rate` });
+    this.rateSelectors.push(selector);
+
+    const root = el('div', { class: 'field-group payout-group' });
+    const sync = () => root.classList.toggle('is-invested', !!group.invest);
+    const checkbox = el('input', {
+      type: 'checkbox',
+      checked: !!group.invest,
+      onchange: () => { group.invest = checkbox.checked; sync(); this.ctx.changed(); },
+    });
+
+    root.append(
+      this.field(label, this.amountInput(group.amount, (n) => { group.amount = n; }, label)),
+      el('div', { class: 'field payout-rate' },
+        el('span', { class: 'field-label' }, 'Growth rate'),
+        selector.render()),
+      el('label', { class: 'checkbox' }, checkbox,
+        el('span', {}, 'Invest for the remainder of the timespan')));
+    sync();
+    return root;
   }
 
   update() {

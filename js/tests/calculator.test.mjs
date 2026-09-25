@@ -23,6 +23,13 @@ check('loan L=1000 r=d=5% n=3', C.loanPV(1000, 0.05, 0.05, 3), 0);
 // A = 1000·0.1/(1−1.1^−2) = 576.1905; 1000 − 576.1905/1.05 − 576.1905/1.1025 = −71.3746
 check('loan L=1000 r=10% d=5% n=2', C.loanPV(1000, 0.10, 0.05, 2), -71.3746);
 
+// Initial payout, not invested: received today, so worth its face value
+check('initial payout P=1000 kept', C.initialPayoutPV(1000, false, 0.10, 0.05, 2), 1000);
+// Invested at g=10%, d=5%, n=2: 1000·1.21 / 1.1025 = 1097.5057 (= P + initial-investment PV 97.5057)
+check('initial payout P=1000 invested g=10% d=5% n=2', C.initialPayoutPV(1000, true, 0.10, 0.05, 2), 1097.5057);
+// Invested at the discount rate is PV-neutral: 1000·1.05³ / 1.05³ = 1000
+check('initial payout invested g=d=5% n=3', C.initialPayoutPV(1000, true, 0.05, 0.05, 3), 1000);
+
 // Full opportunity: linked S&P growth on investment + custom-rate salary + payout
 const settings = { discountRate: 5, sp500Rate: 10, loanRate: 5 };
 const opp = {
@@ -36,6 +43,13 @@ const opp = {
 check('opportunity total', C.opportunityPV(opp, settings), 97.5057 + 1886.6213 + 0);
 settings.sp500Rate = 0; // linked rate follows project setting: −1000 + 1000/1.1025 = −92.9705
 check('opportunity after S&P → 0%', C.opportunityPV(opp, settings), -92.9705 + 1886.6213);
+
+// Initial payout inside an opportunity, with a linked S&P rate (0% now): 1000 / 1.1025 = 907.0295
+check('opportunity with invested initial payout',
+  C.opportunityPV({ ...opp, initialPayout: { amount: 1000, invest: true, rate: { mode: 'sp500' } } }, settings),
+  -92.9705 + 1886.6213 + 907.0295);
+// Older saved opportunities without the field still calculate
+check('opportunity missing initialPayout', C.opportunityPV(opp, settings), -92.9705 + 1886.6213);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);

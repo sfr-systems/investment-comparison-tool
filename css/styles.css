@@ -627,6 +627,28 @@ input.strategy-title {
 .opp-grid { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; }
 .field-group { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* Initial payout: rate column appears only when the payout is invested */
+.payout-group > .checkbox { grid-column: 1 / -1; margin-top: -4px; }
+.payout-group:not(.is-invested) > .field:first-child { grid-column: 1 / -1; }
+.payout-group:not(.is-invested) > .payout-rate { display: none; }
+
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .rate-selector { display: flex; gap: 6px; min-width: 0; }
 .rate-selector select { flex: 1 1 auto; min-width: 0; }
 .rate-custom-wrap { display: none; flex: 0 0 84px; }
