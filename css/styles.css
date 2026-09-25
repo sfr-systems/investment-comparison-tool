@@ -602,7 +602,7 @@ input.project-title {
   z-index: 0;
   transform: translate(-50%, -50%) rotate(-6deg);
   font-family: var(--font-serif);
-  font-size: 118px;
+  font-size: 88.5px; /* 25% smaller than the original 118px */
   font-weight: 600;
   line-height: 1;
   letter-spacing: -0.02em;
