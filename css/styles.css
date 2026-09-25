@@ -491,7 +491,7 @@ input.project-title {
   display: grid;
   grid-template-columns: minmax(150px, 1fr) repeat(4, minmax(0, 1fr));
   gap: 20px;
-  align-items: start;
+  align-items: end;
   margin-bottom: 28px;
   padding: 16px 20px;
   background: color-mix(in srgb, var(--surface) 90%, transparent);
