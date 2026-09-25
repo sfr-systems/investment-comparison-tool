@@ -1,6 +1,7 @@
 import { el, numberInput, debounce, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { StrategyView } from './StrategyView.js';
+import { REFERENCE_RATES as REF } from './referenceRates.js';
 
 /** Project page: settings bar + stacked strategies. Owns saving and live recalculation. */
 export class ProjectView {
@@ -66,13 +67,26 @@ export class ProjectView {
         el('div', { class: 'settings-title' },
           el('strong', {}, 'Assumptions'),
           el('span', {}, 'Applied to every opportunity')),
-        setting('Discount rate', 'discountRate', 'Discounts all cash flows'),
-        setting('S&P 500 return', 'sp500Rate', 'Linked standard rate'),
-        setting('Loan interest rate', 'loanRate', 'Linked standard rate'),
-        setting('Default timespan', 'defaultYears', 'Linked default timespan', {
+        setting('Discount rate', 'discountRate',
+          `Used only for present-value calculations. Typically 6–10% (8% is common); `
+          + `the risk-free 10-yr Treasury yields ≈ ${REF.treasury10y.toFixed(1)}%.`),
+        setting('S&P 500 return', 'sp500Rate',
+          `25-yr average: ${REF.sp500Avg25y.toFixed(1)}% per year `
+          + `(${REF.sp500Period}, compounded, dividends reinvested).`),
+        setting('Loan interest rate', 'loanRate',
+          `U.S. prime rate: ${REF.primeNow.toFixed(2)}% today; `
+          + `25-yr average ${REF.primeAvg25y.toFixed(1)}%. Consumer loans typically price above prime.`),
+        setting('Default timespan', 'defaultYears', 'Applies to opportunities set to Default.', {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
-        })),
+        }),
+        el('p', { class: 'settings-note' },
+          `Reference figures as of ${REF.asOf}, for context only; they don't change your inputs. Sources: `,
+          ...REF.sources.flatMap((src, i) => [
+            i ? ', ' : '',
+            el('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.label),
+          ]),
+          '.')),
       this.saveError,
       this.datalist,
       this.strategyList,
@@ -84,8 +98,20 @@ export class ProjectView {
         },
       }, icon('plus'), 'Add strategy'));
 
+    this.watchSettingsBar();
     this.renderStrategies();
     return this.root;
+  }
+
+  /** Hide the Assumptions notes while the bar is pinned to the top, so it stays compact. */
+  watchSettingsBar() {
+    const bar = this.root.querySelector('.settings-bar');
+    const sentinel = el('div', { class: 'settings-sentinel', 'aria-hidden': 'true' });
+    bar.before(sentinel);
+    this.stickyObserver = new IntersectionObserver(([entry]) => {
+      bar.classList.toggle('is-stuck', !entry.isIntersecting);
+    }, { rootMargin: '-12px 0px 0px 0px' });
+    this.stickyObserver.observe(sentinel);
   }
 
   renderStrategies() {
@@ -128,6 +154,7 @@ export class ProjectView {
 
   destroy() {
     this.save.flush();
+    this.stickyObserver?.disconnect();
     window.removeEventListener('pagehide', this.onPageHide);
   }
 }

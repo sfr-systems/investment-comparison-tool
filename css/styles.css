@@ -490,8 +490,9 @@ input.project-title {
   z-index: 10;
   display: grid;
   grid-template-columns: minmax(150px, 1fr) repeat(4, minmax(0, 1fr));
-  gap: 20px;
-  align-items: end;
+  column-gap: 20px;
+  row-gap: 6px;
+  align-items: start;
   margin-bottom: 28px;
   padding: 16px 20px;
   background: color-mix(in srgb, var(--surface) 90%, transparent);
@@ -501,10 +502,30 @@ input.project-title {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
 }
-.settings-title { display: flex; flex-direction: column; gap: 3px; align-self: center; }
+.settings-title { display: flex; flex-direction: column; gap: 3px; align-self: center; grid-row: span 3; }
+/* Label / input / note rows line up across settings even when notes differ in length */
+.settings-bar .setting { display: grid; grid-row: span 3; grid-template-rows: subgrid; }
+.settings-bar .setting .field-label { align-self: end; }
 .settings-title strong { font-size: 14.5px; font-weight: 600; }
 .settings-title span:last-child { font-size: 12.5px; color: var(--muted); }
-.setting .hint { font-size: 11.5px; color: var(--muted); }
+.setting .hint { font-size: 11.5px; line-height: 1.4; color: var(--muted); }
+.settings-note {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border-strong);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.settings-note a { color: inherit; text-decoration: underline; text-decoration-color: var(--border-strong); text-underline-offset: 2px; }
+.settings-sentinel { height: 1px; margin-bottom: -1px; }
+@media (min-width: 681px) {
+  .settings-bar.is-stuck .hint,
+  .settings-bar.is-stuck .settings-note,
+  .settings-bar.is-stuck .settings-title span:last-child { display: none; }
+  .settings-bar.is-stuck { padding-top: 12px; padding-bottom: 12px; }
+}
+.settings-note a:hover { color: var(--accent); text-decoration-color: currentColor; }
 
 .save-error {
   margin-bottom: 16px;
@@ -730,7 +751,8 @@ input.strategy-title {
    ========================================================================== */
 @media (max-width: 900px) {
   .settings-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .settings-title { grid-column: 1 / -1; }
+  .settings-title { grid-column: 1 / -1; grid-row: auto; }
+  .settings-bar .setting .hint { margin-bottom: 10px; }
 }
 
 @media (max-width: 680px) {
@@ -743,8 +765,7 @@ input.strategy-title {
   .project-open span { display: none; }
 
   input.project-title { font-size: 26px; }
-  .settings-bar { position: static; align-items: end; gap: 12px; padding: 14px; }
-  .setting .hint { display: none; }
+  .settings-bar { position: static; column-gap: 12px; padding: 14px; }
 
   .strategy-header { flex-wrap: wrap; }
   input.strategy-title { flex: 1 1 60%; font-size: 19px; }
