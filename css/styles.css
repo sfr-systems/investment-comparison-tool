@@ -609,6 +609,45 @@ input.project-title {
 }
 
 .strategy-wrap { position: relative; }
+.strategy-move {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.strategy-wrap:hover > .strategy-move,
+.strategy-wrap:focus-within > .strategy-move { opacity: 1; pointer-events: auto; }
+.move-btn {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.move-btn .icon { width: 14px; height: 14px; }
+.move-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.strategy-wrap.just-moved > .strategy { animation: strategy-moved 0.9s ease-out; }
+@keyframes strategy-moved {
+  0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--beacon) 70%, transparent); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
 /* Beacon tab: sits on the strategy's top border, top-left */
 .beacon-badge {
   position: absolute;

@@ -7,9 +7,11 @@ import { Risk } from './Risk.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
-  constructor(strategy, ctx, { position, onDelete }) {
+  constructor(strategy, ctx, { position, count, onMove, onDelete }) {
     this.strategy = strategy;
     this.position = position; // 1-based order in the project; drives the beacon numeral/color
+    this.count = count;
+    this.onMove = onMove;
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.children = [];
@@ -75,11 +77,33 @@ export class StrategyView {
 
     // The badge straddles the strategy's top border, so it lives on an outer wrapper
     // (the strategy itself clips its content to its rounded corners).
-    const wrapper = el('div', { class: 'strategy-wrap' }, Beacon.badge(this.position), this.root);
+    const wrapper = el('div', { class: 'strategy-wrap' },
+      Beacon.badge(this.position), this.moveControls(), this.root);
+    this.wrapper = wrapper;
     Beacon.paint(wrapper, this.position);
     this.syncCollapsed();
     this.update();
     return wrapper;
+  }
+
+  /** Up/down arrows on the left edge, shown on hover/focus; omitted where a move isn't possible. */
+  moveControls() {
+    this.moveButtons = {};
+    const button = (dir, label, glyph) => el('button', {
+      type: 'button', class: 'move-btn', title: label, 'aria-label': label,
+      onclick: () => this.onMove(dir),
+    }, icon(glyph));
+    if (this.position > 1) this.moveButtons.up = button(-1, 'Move strategy up', 'chevronUp');
+    if (this.position < this.count) this.moveButtons.down = button(1, 'Move strategy down', 'chevron');
+    const buttons = Object.values(this.moveButtons);
+    return buttons.length ? el('div', { class: 'strategy-move' }, ...buttons) : null;
+  }
+
+  /** Brief highlight after the strategy is moved. */
+  flash() {
+    this.wrapper.classList.remove('just-moved');
+    void this.wrapper.offsetWidth; // restart the animation
+    this.wrapper.classList.add('just-moved');
   }
 
   syncCollapsed() {

@@ -21,7 +21,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
 - Default timespan (years, default 15)
 
 ## Strategy
-Editable title; add/delete sub groups.
+Editable title; add/delete sub groups. Reorder with up/down arrows on the container's left edge (shown on hover/focus).
 
 ## Sub group
 Editable title; add/delete opportunities.

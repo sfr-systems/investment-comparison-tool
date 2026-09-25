@@ -153,6 +153,8 @@ export class ProjectView {
     const { project, ctx } = this;
     this.children = project.strategies.map((strategy, i) => new StrategyView(strategy, ctx, {
       position: i + 1,
+      count: project.strategies.length,
+      onMove: (dir) => this.moveStrategy(i, dir),
       onDelete: () => {
         if (!confirmDelete('strategy', strategy.title)) return;
         project.strategies = project.strategies.filter((s) => s !== strategy);
@@ -165,6 +167,23 @@ export class ProjectView {
     }
     this.strategyList.replaceChildren(...nodes);
     this.refreshIndividuals();
+  }
+
+  /** Move the strategy at `index` up (-1) or down (+1), keeping it in view and focused. */
+  moveStrategy(index, dir) {
+    const list = this.project.strategies;
+    const target = index + dir;
+    if (target < 0 || target >= list.length) return;
+    [list[index], list[target]] = [list[target], list[index]];
+    this.save();
+    this.renderStrategies();
+    const moved = this.children[target];
+    moved.flash();
+    // Keep keyboard focus on the same arrow so repeated presses keep moving it;
+    // if that arrow no longer exists (now first/last), fall back to the other one.
+    const btn = moved.moveButtons[dir < 0 ? 'up' : 'down'] ?? moved.moveButtons[dir < 0 ? 'down' : 'up'];
+    btn?.focus({ preventScroll: true });
+    moved.wrapper.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
   /** Recompute every PV readout and linked rate label in place (keeps input focus). */
