@@ -881,7 +881,7 @@ input.strategy-title {
   cursor: not-allowed;
 }
 .rate-locked .icon { width: 14px; height: 14px; color: var(--caution-deep); }
-.rate-locked span { overflow: hidden; text-overflow: ellipsis; }
+.rate-locked span { overflow: hidden; text-overflow: ellipsis; font-style: italic; }
 .indefinite-note {
   display: flex;
   gap: 10px;
