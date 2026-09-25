@@ -15,7 +15,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
 - Project (#/project/:id): settings bar at top, then strategies in a vertical stacked list.
 
 ## Project settings (top of project page; changes recalc everything live)
-- Discount rate (%), used for all PV calculations
+- Discount rate (%, default 7), used for all PV calculations
 - Standard S&P 500 return (%, default 12)
 - Standard loan interest rate (%, default 5)
 - Default timespan (years, default 15)

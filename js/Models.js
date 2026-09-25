@@ -17,7 +17,7 @@ export class Models {
       name: (name || '').trim() || 'Untitled Project',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      settings: { discountRate: 5, sp500Rate: 12, loanRate: 5, defaultYears: Models.DEFAULT_YEARS },
+      settings: { discountRate: 7, sp500Rate: 12, loanRate: 5, defaultYears: Models.DEFAULT_YEARS },
       strategies: [],
     };
   }
