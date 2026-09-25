@@ -58,17 +58,18 @@ export class Calculator {
   }
 
   /**
-   * +L − Σ A / (1+d)^t.
-   * Indefinite: interest-only payments A = L·r forever, so L − L·r/d (just +L at 0% interest).
+   * −Σ A / (1+d)^t: the present value of the repayments, always a cost.
+   * The borrowed cash itself isn't counted as a gain; it's assumed to be spent on the opportunity.
+   * Indefinite: interest-only payments A = L·r forever, so −L·r/d (0 at 0% interest).
    */
   static loanPV(L, r, d, n) {
     if (!L) return 0;
     if (n === Infinity) {
-      if (r === 0) return L;
-      return d > 0 ? L - (L * r) / d : -Infinity;
+      if (r === 0) return 0;
+      return d > 0 ? -(L * r) / d : -Infinity;
     }
     const A = Calculator.loanPayment(L, r, n);
-    let pv = L;
+    let pv = 0;
     for (let t = 1; t <= n; t++) pv -= A / Math.pow(1 + d, t);
     return pv;
   }

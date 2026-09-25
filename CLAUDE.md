@@ -48,11 +48,12 @@ Display the opportunity's PV.
 - Yearly salary S, growth g:       Σ S(1+g)^(t−1) / (1+d)^t
 - Initial payout P0 (one-time, paid at start): +P0; if invested at g for the timespan: P0(1+g)^n / (1+d)^n
 - Final payout P (one-time):       P / (1+d)^n
-- Loan L at rate r:                +L − Σ A / (1+d)^t, where A = level annual payment
+- Loan L at rate r:                −Σ A / (1+d)^t (repayments only; the borrowed cash is assumed spent on the
+                                   opportunity, so it isn't a gain), where A = level annual payment
                                    amortizing L over n years at r (A = L/n if r = 0)
 - Indefinite timespan (n → ∞): entered growth rates are disabled so PV stays finite. One-time amounts grow at d
   (initial investment → 0, invested initial payout → P); yearly return/salary have no growth (constant perpetuity R/d);
-  final payout 0 (never received); loan L − L·r/d (interest-only forever; +L at 0%). Only a discount rate ≤ 0 can
+  final payout 0 (never received); loan −L·r/d (interest-only forever; 0 at 0%). Only a discount rate ≤ 0 can
   still make PV unbounded (shown as ±∞ with an explanation). The card shows a note explaining the fixed rates.
 - Opportunity PV = sum of the above. Format as USD.
 
