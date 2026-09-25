@@ -2,7 +2,6 @@ import { el, numberInput, debounce, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { StrategyView } from './StrategyView.js';
 import { REFERENCE_RATES as REF } from './referenceRates.js';
-import { Beacon } from './Beacon.js';
 
 /** Project page: settings bar + stacked strategies. Owns saving and live recalculation. */
 export class ProjectView {
@@ -94,7 +93,7 @@ export class ProjectView {
       el('button', {
         class: 'btn add-btn add-strategy',
         onclick: () => {
-          project.strategies.push(Models.strategy('New Strategy', Beacon.next(project)));
+          project.strategies.push(Models.strategy());
           ctx.structureChanged();
         },
       }, icon('plus'), 'Add strategy'));
@@ -117,7 +116,8 @@ export class ProjectView {
 
   renderStrategies() {
     const { project, ctx } = this;
-    this.children = project.strategies.map((strategy) => new StrategyView(strategy, ctx, {
+    this.children = project.strategies.map((strategy, i) => new StrategyView(strategy, ctx, {
+      position: i + 1,
       onDelete: () => {
         if (!confirmDelete('strategy', strategy.title)) return;
         project.strategies = project.strategies.filter((s) => s !== strategy);

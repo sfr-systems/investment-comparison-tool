@@ -6,8 +6,9 @@ import { Beacon } from './Beacon.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
-  constructor(strategy, ctx, { onDelete }) {
+  constructor(strategy, ctx, { position, onDelete }) {
     this.strategy = strategy;
+    this.position = position; // 1-based order in the project; drives the beacon numeral/color
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.children = [];
@@ -56,7 +57,7 @@ export class StrategyView {
       },
     }, icon('plus'), 'Add sub group'));
 
-    const beacon = Beacon.describe(strategy.beacon);
+    const beacon = Beacon.describe(this.position);
     this.root = el('section', { class: 'strategy' },
       el('header', { class: 'strategy-header', dataset: { numeral: beacon.numeral } },
         this.toggle,
@@ -70,8 +71,8 @@ export class StrategyView {
 
     // The badge straddles the strategy's top border, so it lives on an outer wrapper
     // (the strategy itself clips its content to its rounded corners).
-    const wrapper = el('div', { class: 'strategy-wrap' }, Beacon.badge(strategy.beacon), this.root);
-    Beacon.paint(wrapper, strategy.beacon);
+    const wrapper = el('div', { class: 'strategy-wrap' }, Beacon.badge(this.position), this.root);
+    Beacon.paint(wrapper, this.position);
     this.syncCollapsed();
     this.update();
     return wrapper;

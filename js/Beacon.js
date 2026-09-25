@@ -2,8 +2,9 @@ import { el } from './format.js';
 
 /**
  * Strategy "beacons": a Roman numeral + named color used purely as a spoken/visual
- * reference ("go to Strategy III, the teal one"). Not an identifier for any logic.
- * Colors cycle after the palette runs out.
+ * reference ("go to Strategy III, the teal one"). Numbered by the strategy's position
+ * (I, II, III, ...), so they renumber when strategies are removed. Not an identifier for
+ * any logic. Colors cycle after the palette runs out.
  */
 export class Beacon {
   // [name, light-theme color, dark-theme color]
@@ -28,14 +29,6 @@ export class Beacon {
       while (n >= value) { out += numeral; n -= value; }
     }
     return out;
-  }
-
-  /** Lowest beacon number not used by another strategy in the project. */
-  static next(project) {
-    const used = new Set(project.strategies.map((s) => s.beacon));
-    let n = 1;
-    while (used.has(n)) n++;
-    return n;
   }
 
   static describe(n) {
