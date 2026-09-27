@@ -171,6 +171,35 @@ check('breakdown: percent mode ignores raiseAmount', C.opportunityBreakdown(salO
 check('breakdown: indefinite ignores fixed increase', C.opportunityPV(salOpp({ amount: 1000,
   raiseMode: 'fixed', raiseAmount: 500 }, { yearsMode: 'indefinite' }), salSettings), 10000);
 
+// Yearly cash flows (chart): n = 2, d = 10%, S&P 20%
+const cfSettings = { discountRate: 10, sp500Rate: 20, loanRate: 5 };
+const cfOpp = {
+  yearsMode: 'custom', years: 2, payout: 300,
+  initial: { amount: 1000, rate: { mode: 'custom', custom: 10 } },
+  initialPayout: { amount: 200, invest: false, rate: { mode: 'none' } },
+  yearlyReturn: { amount: 100, rate: { mode: 'none' } },
+  loan: { amount: 1000, rate: { mode: 'custom', custom: 0 } },
+  salary: { amount: 1000, raise: 0, invest: true, investPct: 50, investRate: { mode: 'sp500' } },
+};
+const cf = C.yearlyCashFlows(cfOpp, cfSettings);
+check('cash flows: start + 2 years', cf.length, 3);
+check('cash flows: start payout 200', cf[0].income.initialPayout, 200);
+check('cash flows: start investment paid −1000', cf[0].costs.initial, -1000);
+check('cash flows: year 1 salary kept 500', cf[1].income.salary, 500);
+check('cash flows: year 1 return 100', cf[1].income.yearlyReturn, 100);
+check('cash flows: year 1 loan −500', cf[1].costs.loan, -500);
+check('cash flows: year 2 investment 1000·1.1² = 1210', cf[2].income.initial, 1210);
+// 500·1.2 (year-1 pay, one year of growth) + 500 (year-2 pay, none) = 1100
+check('cash flows: year 2 invested salary 1100', cf[2].income.salaryInvested, 1100);
+check('cash flows: year 2 final payout 300', cf[2].income.payout, 300);
+const cfSum = (rows) => rows.reduce((a, r) => a + [...Object.values(r.income), ...Object.values(r.costs)]
+  .reduce((x, y) => x + y, 0), 0);
+check('cash flows: discounted sum = opportunity PV',
+  cfSum(C.yearlyCashFlows(cfOpp, cfSettings, { discounted: true })), C.opportunityPV(cfOpp, cfSettings));
+check('cash flows: no start column without start amounts', C.yearlyCashFlows({ ...cfOpp,
+  initial: { amount: 0 }, initialPayout: { amount: 200, invest: true, rate: { mode: 'sp500' } } }, cfSettings)[0].year, 1);
+check('cash flows: indefinite → none', C.yearlyCashFlows({ ...cfOpp, yearsMode: 'indefinite' }, cfSettings) === null ? 1 : 0, 1);
+
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);
 check('sub group total', totals.total, 2 * (-92.9705 + 1886.6213 - 1000));

@@ -36,6 +36,14 @@
   --risk-neutral: #b26f12;
   --risk-high: #c2413b;
   --caution-deep: #8f6a12;
+  /* Cash-flow chart series (validated categorical order; loan is the red slot) */
+  --cf-salary: #2a78d6;
+  --cf-salary-invested: #eb6834;
+  --cf-return: #1baf7a;
+  --cf-investment: #eda100;
+  --cf-initial-payout: #e87ba4;
+  --cf-final-payout: #008300;
+  --cf-loan: #e34948;
   color-scheme: light;
 }
 
@@ -68,6 +76,13 @@
   --risk-neutral: #f2b64f;
   --risk-high: #f07a72;
   --caution-deep: #c9962e;
+  --cf-salary: #3987e5;
+  --cf-salary-invested: #d95926;
+  --cf-return: #199e70;
+  --cf-investment: #c98500;
+  --cf-initial-payout: #d55181;
+  --cf-final-payout: #008300;
+  --cf-loan: #e66767;
   color-scheme: dark;
 }
 
@@ -1033,6 +1048,190 @@ input:disabled { cursor: not-allowed; }
 .pv-breakdown:empty { display: none; }
 .pv-breakdown dt { margin: 0; }
 .pv-breakdown dd { margin: 0; text-align: right; color: var(--text-2); }
+
+/* Yearly cash-flow chart (js/CashFlowChart.js) */
+.cash-flow-chart {
+  padding: 14px 16px 16px;
+  border-top: 1px solid var(--border);
+}
+.cf-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 10px; }
+.cf-actions, .cf-controls { display: flex; align-items: center; gap: 6px; }
+.cf-cumulative {
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+.cf-cumulative:hover { color: var(--text); }
+.cf-cumulative[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.cf-cumulative:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.cf-mode { height: 30px; }
+.cf-expand { width: 30px; height: 30px; }
+.cf-mode .unit-option { width: auto; padding: 0 9px; font-size: 12px; }
+.cf-head[hidden] { display: none; }
+.cf-note {
+  margin: 0;
+  padding: 18px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 12.5px;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+.cf-frame {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: 175px auto auto;
+  column-gap: 8px;
+}
+.cf-y-axis { position: relative; width: 40px; }
+.cf-y-axis span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cf-plot { position: relative; border-radius: 4px; }
+.cf-plot:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.cf-grid span { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
+.cf-grid span.is-zero { border-top-color: var(--muted); }
+.cf-cols { position: absolute; inset: 0; display: flex; }
+.cf-col {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+  padding: 0 3px;
+  border-radius: 4px;
+}
+.cf-col.is-active { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.cf-slot { position: relative; flex: 1 1 0; max-width: 44px; min-width: 0; }
+.cf-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  border-radius: 4px 4px 0 0;
+  overflow: hidden;
+}
+.cf-seg { flex-basis: 0; min-height: 0; transition: opacity 0.12s; }
+.cf-plot.has-active .cf-col:not(.is-active) .cf-seg { opacity: 0.45; }
+.cf-col.is-active .cf-seg.is-hover { box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 55%, transparent); }
+.cf-x-axis { display: flex; padding-top: 6px; }
+.cf-x-axis span {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cf-x-title { text-align: center; font-size: 11px; color: var(--muted); padding-top: 2px; }
+.cf-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.cf-legend li { display: flex; align-items: center; gap: 6px; }
+.cf-swatch { width: 10px; height: 10px; border-radius: 3px; flex: none; }
+
+/* At rest the chart is just bars: axis labels, legend and the value toggle appear while the card is
+   hovered or focused. The y-axis column collapses so the plot widens; the rest keep their space
+   (no layout jump). Touch screens without hover always show everything. */
+@media (hover: hover) {
+  .cf-frame { transition: column-gap 0.2s ease; }
+  /* Clip only sideways, so the top and bottom labels (centered on their gridlines) stay whole. */
+  .cf-y-axis { clip-path: inset(-12px 0); transition: width 0.2s ease, opacity 0.2s ease; }
+  .cf-actions, .cf-x-axis, .cf-x-title, .cf-legend { transition: opacity 0.2s ease, visibility 0.2s; }
+  .opportunity:not(:hover, :focus-within) .cf-frame { column-gap: 0; }
+  .opportunity:not(:hover, :focus-within) .cf-y-axis { width: 0; opacity: 0; }
+  .opportunity:not(:hover, :focus-within) :is(.cf-actions, .cf-x-axis, .cf-x-title, .cf-legend) {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* Expanded chart popup: the same chart filling most of the window, labels always shown */
+.cf-dialog {
+  width: min(1440px, calc(100vw - 48px));
+  height: calc(100vh - 48px);
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.cf-dialog[open] { display: flex; }
+.cf-dialog::backdrop { background: rgba(8, 10, 14, 0.55); }
+body:has(.cf-dialog[open]) { overflow: hidden; }
+.cf-dialog-inner { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 18px 22px 20px; }
+.cf-dialog-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cf-dialog-title { flex: 1; min-width: 0; }
+.cf-dialog-title h2 { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-dialog .cash-flow-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; border: none; }
+.cf-dialog .cf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cf-dialog .cf-frame { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto auto; column-gap: 10px; }
+.cf-dialog .cf-y-axis { width: 52px; }
+.cf-dialog .cf-y-axis span,
+.cf-dialog .cf-x-axis span,
+.cf-dialog .cf-x-title { font-size: 12px; }
+.cf-dialog .cf-slot { max-width: 64px; }
+.cf-dialog .cf-col { padding: 0 6px; }
+.cf-dialog .cf-legend { font-size: 13px; }
+.cf-tooltip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  min-width: 190px;
+  padding: 8px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  font-size: 12px;
+  pointer-events: none;
+}
+.cf-tooltip[hidden] { display: none; }
+.cf-tip-title { font-weight: 600; margin-bottom: 4px; }
+.cf-tip-row {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+  color: var(--text-2);
+}
+.cf-tip-row.is-hover { color: var(--text); font-weight: 600; }
+.cf-tip-value { text-align: right; font-variant-numeric: tabular-nums; }
+.cf-tip-total { margin-top: 3px; padding-top: 4px; border-top: 1px dashed var(--border-strong); color: var(--text); font-weight: 600; }
+.cf-tip-total + .cf-tip-row:not(.cf-tip-total) { margin-top: 4px; }
 
 /* Sub group ledger */
 .subgroup-totals {

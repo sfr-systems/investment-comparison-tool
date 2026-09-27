@@ -3,6 +3,7 @@ import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
 import { Risk } from './Risk.js';
+import { CashFlowChart } from './CashFlowChart.js';
 
 const BREAKDOWN_LABELS = {
   loan: 'Loan',
@@ -68,6 +69,7 @@ export class OpportunityView {
           this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)')),
 
         this.salaryGroup(opp.salary)),
+      (this.chart = new CashFlowChart(opp, ctx)).render(),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
@@ -102,11 +104,15 @@ export class OpportunityView {
         selector.render()));
   }
 
-  /** Caution shown on indefinite timespans; its text is filled in by update(). */
+  /**
+   * Caution shown on indefinite timespans; its text is filled in by update(). It starts collapsed
+   * each time the timespan is switched to Indefinite (see timespanSelector).
+   */
   buildIndefiniteNote() {
     this.noteBody = el('span', { class: 'note-body' });
     const note = this.collapsibleNote({
       className: 'indefinite-note', iconName: 'alert', collapsedKey: 'indefiniteNoteCollapsed',
+      defaultCollapsed: true,
       heading: 'Growth rates below are fixed on an indefinite timespan. ', body: this.noteBody,
     });
     note.hidden = true;
@@ -114,16 +120,17 @@ export class OpportunityView {
   }
 
   /**
-   * Note with a bold heading and a body. Open by default; the chevron collapses it to its
-   * heading line, and that choice is saved on the opportunity under `collapsedKey`.
+   * Note with a bold heading and a body, open unless `defaultCollapsed`. The chevron collapses it to
+   * its heading line, and that choice is saved on the opportunity under `collapsedKey`.
    */
-  collapsibleNote({ className, iconName, heading, body, collapsedKey }) {
+  collapsibleNote({ className, iconName, heading, body, collapsedKey, defaultCollapsed = false }) {
     const { opp, ctx } = this;
     body.id = `${collapsedKey}-${opp.id}`;
+    const isCollapsed = () => opp[collapsedKey] ?? defaultCollapsed;
     const toggle = el('button', {
       type: 'button', class: 'icon-btn note-toggle-btn', 'aria-controls': body.id,
       onclick: () => {
-        opp[collapsedKey] = !opp[collapsedKey];
+        opp[collapsedKey] = !isCollapsed();
         sync();
         ctx.changed({ light: true });
       },
@@ -133,13 +140,14 @@ export class OpportunityView {
       el('p', { class: 'note-content' }, el('strong', {}, heading), body),
       toggle);
     const sync = () => {
-      const collapsed = !!opp[collapsedKey];
+      const collapsed = isCollapsed();
       note.classList.toggle('is-collapsed', collapsed);
       toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Hide details');
       toggle.title = collapsed ? 'Show details' : 'Hide details';
     };
     sync();
+    note.syncCollapsed = sync;
     return note;
   }
 
@@ -202,14 +210,15 @@ export class OpportunityView {
       Object.assign(this.field('Salary invested', pctField(investPct)), { className: 'field salary-invest' }),
       el('div', { class: 'field salary-invest' },
         el('span', { class: 'field-label' }, 'Growth rate'), investSelector.render()),
-      Object.assign(this.collapsibleNote({
-        className: 'info-note', iconName: 'info', collapsedKey: 'salaryNoteCollapsed',
+      this.collapsibleNote({
+        className: 'info-note salary-invest', iconName: 'info', collapsedKey: 'salaryNoteCollapsed',
+        defaultCollapsed: true,
         heading: 'How invested salary grows. ',
         body: el('span', { class: 'note-body' },
           'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
           + 'It starts growing the following year and compounds every year after that; the balance is '
           + 'counted at its value at the end of the timespan.'),
-      }), { className: 'info-note collapsible-note salary-invest' }));
+      }));
     sync();
     return root;
   }
@@ -309,6 +318,10 @@ export class OpportunityView {
           years.value = String(opp.years);
           setValidity(years, true);
         }
+        if (opp.yearsMode === 'indefinite') {
+          opp.indefiniteNoteCollapsed = true;
+          this.indefiniteNote.syncCollapsed();
+        }
         root.classList.toggle('is-custom', opp.yearsMode === 'custom');
         ctx.changed();
       },
@@ -367,5 +380,6 @@ export class OpportunityView {
       .filter(([key]) => Math.abs(b[key]) >= 0.005)
       .flatMap(([key, label]) => [el('dt', {}, label), showPV(el('dd'), b[key])]));
     this.rateSelectors.forEach((r) => r.update());
+    this.chart.update();
   }
 }

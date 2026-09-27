@@ -63,11 +63,16 @@ export class Calculator {
     let kept = 0;
     let invested = 0;
     for (let t = 1; t <= n; t++) {
-      const pay = Math.min(Math.max(0, S * Math.pow(1 + g, t - 1) + k * (t - 1)), ceiling);
+      const pay = Calculator.salaryPay(t, { S, g, k }, ceiling);
       kept += ((1 - p) * pay) / Math.pow(1 + d, t);
       invested += (p * pay * Math.pow(1 + gi, n - t)) / endDiscount;
     }
     return { kept, invested };
+  }
+
+  /** Pay in year t: S(1+g)^(t−1) + k(t−1), never below 0 or above `ceiling`. */
+  static salaryPay(t, { S, g = 0, k = 0 }, ceiling = Infinity) {
+    return Math.min(Math.max(0, S * Math.pow(1 + g, t - 1) + k * (t - 1)), ceiling);
   }
 
   /** P / (1+d)^n. Indefinite: the end never comes, so the payout is never received. */
@@ -149,6 +154,12 @@ export class Calculator {
 
   /** { salary, salaryInvested } for an opportunity's salary settings. */
   static salaryParts(sal = {}, settings, d, n) {
+    const { kept, invested } = Calculator.salaryPV(Calculator.salaryInputs(sal, settings, d, n), d, n);
+    return { salary: kept, salaryInvested: invested };
+  }
+
+  /** Resolve salary settings to salaryPV's { S, g, k, cap, p, gi } (decimals). */
+  static salaryInputs(sal = {}, settings, d, n) {
     const indefinite = n === Infinity;
     // `raise` is a percent, `raiseAmount` dollars (raiseMode 'fixed'); salaries saved before
     // either existed used a rate selector.
@@ -157,15 +168,63 @@ export class Calculator {
       : sal.raise != null ? (Number(sal.raise) || 0) / 100 : Calculator.resolveRate(sal.rate, settings);
     const raiseAmount = fixed ? Number(sal.raiseAmount) || 0 : 0;
     const investing = !!sal.invest;
-    const { kept, invested } = Calculator.salaryPV({
+    return {
       S: +sal.amount || 0,
       g: indefinite ? 0 : raise,
       k: indefinite ? 0 : raiseAmount,
       cap: indefinite ? null : sal.cap,
       p: investing ? Math.min(100, Math.max(0, Number(sal.investPct ?? 100))) / 100 : 0,
       gi: indefinite ? d : Calculator.resolveRate(sal.investRate, settings),
-    }, d, n);
-    return { salary: kept, salaryInvested: invested };
+    };
+  }
+
+  /**
+   * Year-by-year cash flows for a set timespan (null when indefinite), for the cash-flow chart.
+   * Returns [{ year, income: { key: amount }, costs: { key: amount < 0 } }] for years 0..n,
+   * where year 0 is the start (listed only when something happens then). Keys match
+   * opportunityBreakdown; `initial` is the investment paid in (a cost at the start) and its
+   * grown value (income at year n). Amounts are as received that year; with `discounted`
+   * each is divided by (1+d)^t, so everything sums to the opportunity's PV.
+   */
+  static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
+    const n = Calculator.resolveYears(opp, settings);
+    if (n === Infinity) return null;
+    const d = (Number(settings.discountRate) || 0) / 100;
+    const rate = (r) => Calculator.resolveRate(r, settings);
+    const years = Array.from({ length: n + 1 }, (_, year) => ({ year, income: {}, costs: {} }));
+    const add = (t, side, key, amount) => {
+      if (!amount) return;
+      const v = discounted ? amount / Math.pow(1 + d, t) : amount;
+      years[t][side][key] = (years[t][side][key] || 0) + v;
+    };
+
+    const I = +opp.initial?.amount || 0;
+    add(0, 'costs', 'initial', -I);
+    add(n, 'income', 'initial', I * Math.pow(1 + rate(opp.initial?.rate), n));
+
+    const P0 = +opp.initialPayout?.amount || 0;
+    if (opp.initialPayout?.invest) add(n, 'income', 'initialPayout', P0 * Math.pow(1 + rate(opp.initialPayout.rate), n));
+    else add(0, 'income', 'initialPayout', P0);
+
+    const R = +opp.yearlyReturn?.amount || 0;
+    const gR = rate(opp.yearlyReturn?.rate);
+    const s = Calculator.salaryInputs(opp.salary, settings, d, n);
+    const ceiling = (s.g > 0 || s.k > 0) && s.cap != null ? Math.max(s.cap, s.S) : Infinity;
+    const L = +opp.loan?.amount || 0;
+    const A = L ? Calculator.loanPayment(L, rate(opp.loan?.rate), n) : 0;
+    let investedSalary = 0;
+    for (let t = 1; t <= n; t++) {
+      add(t, 'income', 'yearlyReturn', R * Math.pow(1 + gR, t - 1));
+      const pay = s.S ? Calculator.salaryPay(t, s, ceiling) : 0;
+      add(t, 'income', 'salary', (1 - s.p) * pay);
+      investedSalary += s.p * pay * Math.pow(1 + s.gi, n - t);
+      add(t, 'costs', 'loan', -A);
+    }
+    add(n, 'income', 'salaryInvested', investedSalary);
+    add(n, 'income', 'payout', +opp.payout || 0);
+
+    const hasStart = Object.keys(years[0].income).length || Object.keys(years[0].costs).length;
+    return hasStart ? years : years.slice(1);
   }
 
   static opportunityPV(opp, settings) {
