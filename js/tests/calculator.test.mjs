@@ -159,6 +159,17 @@ check('breakdown: invest off ignores investPct', C.opportunityBreakdown(salOpp({
   invest: false, investPct: 50, investRate: { mode: 'sp500' } }), salSettings).salaryInvested, 0);
 check('breakdown: indefinite salary = S/d regardless', C.opportunityPV(salOpp({ amount: 1000, raise: 15,
   cap: 1200, invest: true, investPct: 40, investRate: { mode: 'sp500' } }, { yearsMode: 'indefinite' }), salSettings), 10000);
+// Fixed $ increase k = 100, d 10%, n 3: pays 1000, 1100, 1200 → 909.0909 + 909.0909 + 901.5778
+check('salary fixed +$100/yr', sal({ S: 1000, k: 100 }, 0.10, 3), 2719.7596);
+check('salary fixed +$100/yr, cap 1,100', sal({ S: 1000, k: 100, cap: 1100 }, 0.10, 3), 2644.6281);
+// Fixed decrease never pays below 0: 1000, 400, 0 at d = 0
+check('salary fixed −$600/yr floors at 0', sal({ S: 1000, k: -600 }, 0, 3), 1400);
+check('breakdown: fixed mode ignores the % raise', C.opportunityBreakdown(salOpp({ amount: 1000,
+  raiseMode: 'fixed', raise: 50, raiseAmount: 100 }), salSettings).salary, 1818.1818);
+check('breakdown: percent mode ignores raiseAmount', C.opportunityBreakdown(salOpp({ amount: 1000,
+  raiseMode: 'percent', raise: 10, raiseAmount: 5000 }), salSettings).salary, 909.0909 + 1100 / 1.21);
+check('breakdown: indefinite ignores fixed increase', C.opportunityPV(salOpp({ amount: 1000,
+  raiseMode: 'fixed', raiseAmount: 500 }, { yearsMode: 'indefinite' }), salSettings), 10000);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);

@@ -44,25 +44,26 @@ export class Calculator {
   }
 
   /**
-   * Yearly salary S paid at the end of each year t = 1..n, rising by g a year until it reaches
-   * `cap` (the cap never lowers pay below S, and only applies when g > 0).
+   * Yearly salary S paid at the end of each year t = 1..n, rising by g (a rate) or k (a fixed
+   * dollar amount) a year until it reaches `cap` (the cap never lowers pay below S, and only
+   * applies when the increase is > 0). A negative k lowers pay each year, never below 0.
    * A share p of each year's pay is invested at the end of that year and grows at gi from the
    * following year until year n, where it's counted: p·pay_t·(1+gi)^(n−t) / (1+d)^n.
    * Returns { kept, invested } present values.
    * Indefinite: no raises or cap and invested pay grows at d, so the total is the perpetuity S/d.
    */
-  static salaryPV({ S, g = 0, cap = null, p = 0, gi = 0 }, d, n) {
+  static salaryPV({ S, g = 0, k = 0, cap = null, p = 0, gi = 0 }, d, n) {
     if (!S) return { kept: 0, invested: 0 };
     if (n === Infinity) {
       const total = Calculator.growingAnnuityPV(S, 0, d, Infinity);
       return { kept: p >= 1 ? 0 : total * (1 - p), invested: p <= 0 ? 0 : total * p };
     }
-    const ceiling = g > 0 && cap != null ? Math.max(cap, S) : Infinity;
+    const ceiling = (g > 0 || k > 0) && cap != null ? Math.max(cap, S) : Infinity;
     const endDiscount = Math.pow(1 + d, n);
     let kept = 0;
     let invested = 0;
     for (let t = 1; t <= n; t++) {
-      const pay = Math.min(S * Math.pow(1 + g, t - 1), ceiling);
+      const pay = Math.min(Math.max(0, S * Math.pow(1 + g, t - 1) + k * (t - 1)), ceiling);
       kept += ((1 - p) * pay) / Math.pow(1 + d, t);
       invested += (p * pay * Math.pow(1 + gi, n - t)) / endDiscount;
     }
@@ -149,12 +150,17 @@ export class Calculator {
   /** { salary, salaryInvested } for an opportunity's salary settings. */
   static salaryParts(sal = {}, settings, d, n) {
     const indefinite = n === Infinity;
-    // `raise` is a percent; salaries saved before it existed used a rate selector.
-    const raise = sal.raise != null ? (Number(sal.raise) || 0) / 100 : Calculator.resolveRate(sal.rate, settings);
+    // `raise` is a percent, `raiseAmount` dollars (raiseMode 'fixed'); salaries saved before
+    // either existed used a rate selector.
+    const fixed = sal.raiseMode === 'fixed';
+    const raise = fixed ? 0
+      : sal.raise != null ? (Number(sal.raise) || 0) / 100 : Calculator.resolveRate(sal.rate, settings);
+    const raiseAmount = fixed ? Number(sal.raiseAmount) || 0 : 0;
     const investing = !!sal.invest;
     const { kept, invested } = Calculator.salaryPV({
       S: +sal.amount || 0,
       g: indefinite ? 0 : raise,
+      k: indefinite ? 0 : raiseAmount,
       cap: indefinite ? null : sal.cap,
       p: investing ? Math.min(100, Math.max(0, Number(sal.investPct ?? 100))) / 100 : 0,
       gi: indefinite ? d : Calculator.resolveRate(sal.investRate, settings),

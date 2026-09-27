@@ -102,29 +102,38 @@ export class OpportunityView {
         selector.render()));
   }
 
-  /**
-   * Caution shown on indefinite timespans. Open by default; the chevron collapses it to its
-   * heading line, and that choice is saved on the opportunity.
-   */
+  /** Caution shown on indefinite timespans; its text is filled in by update(). */
   buildIndefiniteNote() {
+    this.noteBody = el('span', { class: 'note-body' });
+    const note = this.collapsibleNote({
+      className: 'indefinite-note', iconName: 'alert', collapsedKey: 'indefiniteNoteCollapsed',
+      heading: 'Growth rates below are fixed on an indefinite timespan. ', body: this.noteBody,
+    });
+    note.hidden = true;
+    return note;
+  }
+
+  /**
+   * Note with a bold heading and a body. Open by default; the chevron collapses it to its
+   * heading line, and that choice is saved on the opportunity under `collapsedKey`.
+   */
+  collapsibleNote({ className, iconName, heading, body, collapsedKey }) {
     const { opp, ctx } = this;
-    this.noteBody = el('span', { class: 'note-body', id: `note-${opp.id}` });
+    body.id = `${collapsedKey}-${opp.id}`;
     const toggle = el('button', {
-      type: 'button', class: 'icon-btn note-toggle-btn', 'aria-controls': `note-${opp.id}`,
+      type: 'button', class: 'icon-btn note-toggle-btn', 'aria-controls': body.id,
       onclick: () => {
-        opp.indefiniteNoteCollapsed = !opp.indefiniteNoteCollapsed;
+        opp[collapsedKey] = !opp[collapsedKey];
         sync();
         ctx.changed({ light: true });
       },
     }, icon('chevronUp'));
-    const note = el('div', { class: 'indefinite-note', role: 'note', hidden: true },
-      icon('alert', 'note-icon'),
-      el('p', { class: 'note-content' },
-        el('strong', {}, 'Growth rates below are fixed on an indefinite timespan. '),
-        this.noteBody),
+    const note = el('div', { class: `${className} collapsible-note`, role: 'note' },
+      icon(iconName, 'note-icon'),
+      el('p', { class: 'note-content' }, el('strong', {}, heading), body),
       toggle);
     const sync = () => {
-      const collapsed = !!opp.indefiniteNoteCollapsed;
+      const collapsed = !!opp[collapsedKey];
       note.classList.toggle('is-collapsed', collapsed);
       toggle.setAttribute('aria-expanded', String(!collapsed));
       toggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Hide details');
@@ -135,7 +144,7 @@ export class OpportunityView {
   }
 
   /**
-   * Yearly salary: amount, yearly increase %, optional cap (enabled once there's an increase),
+   * Yearly salary: amount, yearly increase (% or fixed $), optional cap (enabled once there's an increase),
    * and an "invest some or all" option with its % and growth rate plus a timing note.
    */
   salaryGroup(sal) {
@@ -147,11 +156,21 @@ export class OpportunityView {
     const pctField = (input) => el('span', { class: 'with-suffix' }, input, el('span', { class: 'suffix' }, '%'));
     const raiseInput = numberInput({
       value: sal.raise ?? 0, greaterThan: -100, arrowStep: 1,
-      message: 'Increase must be greater than -100%', 'aria-label': 'Yearly salary increase',
+      message: 'Increase must be greater than -100%', 'aria-label': 'Yearly salary increase (%)',
       onValue: (n) => { sal.raise = n; ctx.changed(); },
     });
+    const raiseAmountInput = numberInput({
+      value: sal.raiseAmount ?? 0, arrowStep: 1000, class: 'amount',
+      message: 'Enter a dollar amount', 'aria-label': 'Yearly salary increase ($)',
+      onValue: (n) => { sal.raiseAmount = n; ctx.changed(); },
+    });
     this.raiseLocked = el('span', { class: 'rate-locked' });
-    this.raiseBox = el('div', { class: 'lockable' }, pctField(raiseInput), this.raiseLocked);
+    this.raiseBox = el('div', { class: 'lockable raise-box' },
+      el('span', { class: 'raise-percent' }, pctField(raiseInput)),
+      el('span', { class: 'raise-fixed with-prefix' }, el('span', { class: 'prefix' }, '$'), raiseAmountInput),
+      this.raiseModeToggle(sal),
+      this.raiseLocked);
+    this.raiseBox.classList.toggle('is-fixed', sal.raiseMode === 'fixed');
 
     this.capInput = numberInput({
       value: sal.cap ?? '', min: 0, optional: true, class: 'amount', placeholder: 'No cap',
@@ -183,27 +202,63 @@ export class OpportunityView {
       Object.assign(this.field('Salary invested', pctField(investPct)), { className: 'field salary-invest' }),
       el('div', { class: 'field salary-invest' },
         el('span', { class: 'field-label' }, 'Growth rate'), investSelector.render()),
-      el('p', { class: 'info-note salary-invest' },
-        icon('info', 'note-icon'),
-        el('span', {},
+      Object.assign(this.collapsibleNote({
+        className: 'info-note', iconName: 'info', collapsedKey: 'salaryNoteCollapsed',
+        heading: 'How invested salary grows. ',
+        body: el('span', { class: 'note-body' },
           'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
           + 'It starts growing the following year and compounds every year after that; the balance is '
-          + 'counted at its value at the end of the timespan.')));
+          + 'counted at its value at the end of the timespan.'),
+      }), { className: 'info-note collapsible-note salary-invest' }));
     sync();
     return root;
+  }
+
+  /** [% | #] toggle: a yearly percentage increase or a fixed dollar increase. */
+  raiseModeToggle(sal) {
+    const modes = [
+      { key: 'percent', label: '%', title: 'Percentage increase' },
+      { key: 'fixed', label: '#', title: 'Fixed dollar increase' },
+    ];
+    const group = el('div', { class: 'unit-toggle', role: 'radiogroup', 'aria-label': 'Yearly increase type' });
+    const buttons = modes.map((m) => el('button', {
+      type: 'button', class: 'unit-option', role: 'radio', title: m.title, 'aria-label': m.title,
+      onclick: () => {
+        if (sal.raiseMode === m.key) return;
+        sal.raiseMode = m.key;
+        sync();
+        this.raiseBox.classList.toggle('is-fixed', m.key === 'fixed');
+        this.ctx.changed();
+      },
+    }, m.label));
+    const sync = () => buttons.forEach((b, i) => {
+      const on = modes[i].key === (sal.raiseMode ?? 'percent');
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    group.addEventListener('keydown', (e) => {
+      const i = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0 }[e.key];
+      if (i == null) return;
+      e.preventDefault();
+      buttons[i].click();
+      buttons[i].focus();
+    });
+    group.append(...buttons);
+    sync();
+    return group;
   }
 
   /** Salary controls that depend on the raise and the timespan. */
   syncSalary(indefinite) {
     const sal = this.opp.salary;
-    const hasRaise = Number(sal.raise) > 0;
+    const hasRaise = Number(sal.raiseMode === 'fixed' ? sal.raiseAmount : sal.raise) > 0;
     const capOff = indefinite || !hasRaise;
     this.capInput.disabled = capOff;
     this.capField.classList.toggle('is-disabled', capOff);
     this.capField.title = indefinite ? 'Not used on an indefinite timespan'
-      : hasRaise ? '' : 'Set a yearly increase above 0% to use a cap';
+      : hasRaise ? '' : 'Set a yearly increase above 0 to use a cap';
     this.raiseBox.classList.toggle('is-locked', indefinite);
-    this.raiseBox.querySelector('input').disabled = indefinite;
+    this.raiseBox.querySelectorAll('input, button').forEach((c) => { c.disabled = indefinite; });
     this.raiseLocked.replaceChildren(...(indefinite ? [icon('alert'), el('span', {}, 'None (held constant)')] : []));
     this.raiseLocked.title = indefinite ? 'Fixed while the timespan is Indefinite' : '';
   }

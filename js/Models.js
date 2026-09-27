@@ -31,12 +31,13 @@ export class Models {
   }
 
   /**
-   * Yearly salary: raise is a yearly % increase, cap an optional maximum (null = none);
+   * Yearly salary: raiseMode picks a yearly % increase (raise) or a fixed $ increase
+   * (raiseAmount); cap is an optional maximum (null = none);
    * when `invest` is on, investPct % of each year's pay is invested at year end at investRate.
    */
   static salary() {
     return {
-      amount: 0, raise: 0, cap: null,
+      amount: 0, raiseMode: 'percent', raise: 0, raiseAmount: 0, cap: null,
       invest: false, investPct: 100, investRate: Models.rate('sp500'),
     };
   }
@@ -58,6 +59,8 @@ export class Models {
           : r.mode === 'loan' ? Number(settings.loanRate) || 0 : 0;
       delete sal.rate;
     }
+    sal.raiseMode ??= 'percent';
+    sal.raiseAmount ??= 0;
     sal.cap ??= null;
     sal.invest ??= false;
     sal.investPct ??= 100;
