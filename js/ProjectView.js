@@ -71,7 +71,7 @@ export class ProjectView {
       el('div', { class: 'settings-bar', role: 'group', 'aria-label': 'Project settings' },
         el('div', { class: 'settings-title' },
           el('strong', {}, 'Assumptions'),
-          el('span', {}, 'Applied to every opportunity')),
+          el('span', {}, 'Applied to every income source')),
         setting('Discount rate', 'discountRate',
           `Used only for present-value calculations. Typically 6–10% (8% is common); `
           + `the risk-free 10-yr Treasury yields ≈ ${REF.treasury10y.toFixed(1)}%.`),
@@ -81,7 +81,7 @@ export class ProjectView {
         setting('Loan interest rate', 'loanRate',
           `U.S. prime rate: ${REF.primeNow.toFixed(2)}% today; `
           + `15-yr average ${REF.primeAvg15y.toFixed(1)}%. Consumer loans typically price above prime.`),
-        setting('Default timespan', 'defaultYears', 'Applies to opportunities set to Default.', {
+        setting('Default timespan', 'defaultYears', 'Applies to income sources set to Default.', {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
         }),

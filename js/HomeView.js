@@ -29,7 +29,7 @@ export class HomeView {
       el('section', { class: 'hero' },
         el('span', { class: 'eyebrow' }, 'Present value analysis'),
         el('h1', {}, 'Compare investment strategies'),
-        el('p', {}, 'Model opportunities side by side and see what each strategy is worth in today’s dollars.'),
+        el('p', {}, 'Model income sources side by side and see what each strategy is worth in today’s dollars.'),
         form),
       el('div', { class: 'section-head' },
         el('h2', { class: 'eyebrow' }, 'Projects'),

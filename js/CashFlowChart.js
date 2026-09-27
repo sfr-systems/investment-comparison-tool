@@ -78,7 +78,7 @@ export class CashFlowChart {
         el('header', { class: 'cf-dialog-head' },
           el('div', { class: 'cf-dialog-title' },
             big.titleEl,
-            el('h2', {}, this.opp.title || 'Untitled opportunity')),
+            el('h2', {}, this.opp.title || 'Untitled income source')),
           big.controls,
           el('button', {
             type: 'button', class: 'icon-btn', title: 'Close', 'aria-label': 'Close',

@@ -79,7 +79,7 @@ export class Risk {
     node.className = node.className.replace(/\brisk-(low|neutral|high)\b/g, '').trim() + ` risk-${level}`;
     node.title = `${label} (${weighted ? 'weighted by present value' : 'no value yet, counted equally'}): `
       + `${pct(shares.low)} low, ${pct(shares.neutral)} neutral, ${pct(shares.high)} high. `
-      + `${total} ${total === 1 ? 'opportunity' : 'opportunities'}: `
+      + `${total} ${total === 1 ? 'income source' : 'income sources'}: `
       + `${counts.low} low, ${counts.neutral} neutral, ${counts.high} high.`;
     node.setAttribute('role', 'img');
     node.setAttribute('aria-label', node.title);

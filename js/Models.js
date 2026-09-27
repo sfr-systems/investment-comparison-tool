@@ -1,4 +1,7 @@
-/** Factories for the data model: Project → Strategy[] → SubGroup[] → Opportunity[]. */
+/**
+ * Factories for the data model: Project → Strategy[] → SubGroup[] → Opportunity[].
+ * Opportunities are called "income sources" in the UI.
+ */
 export class Models {
   static DEFAULT_YEARS = 15;
 
@@ -49,6 +52,7 @@ export class Models {
 
   /** Fill fields added after an opportunity was saved (older projects). */
   static upgradeOpportunity(opp, settings = {}) {
+    if (opp.title === 'New Opportunity') opp.title = Models.DEFAULT_OPPORTUNITY_TITLE; // the old default
     opp.initialPayout ??= Models.initialPayout();
     const sal = (opp.salary ??= Models.salary());
     if (sal.raise == null) {
@@ -108,12 +112,12 @@ export class Models {
     return project;
   }
 
-  static DEFAULT_OPPORTUNITY_TITLE = 'New Opportunity';
+  static DEFAULT_OPPORTUNITY_TITLE = 'New Income Source';
 
   /**
    * Display names for a list of opportunities: their titles, except that unnamed ones (blank or
    * still the default title) are numbered in list order when there's more than one of them,
-   * e.g. "New Opportunity 1", "New Opportunity 2". Titles themselves are left unchanged.
+   * e.g. "New Income Source 1", "New Income Source 2". Titles themselves are left unchanged.
    */
   static opportunityLabels(opportunities) {
     const base = Models.DEFAULT_OPPORTUNITY_TITLE;

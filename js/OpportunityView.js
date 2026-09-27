@@ -15,7 +15,7 @@ const BREAKDOWN_LABELS = {
   salaryInvested: 'Invested salary',
 };
 
-/** One opportunity card: inputs + live PV. */
+/** One income source (opportunity) card: inputs + live PV. */
 export class OpportunityView {
   constructor(opp, ctx, { onDelete }) {
     this.opp = Models.upgradeOpportunity(opp, ctx.project.settings);
@@ -28,8 +28,8 @@ export class OpportunityView {
     const { opp, ctx } = this;
 
     const title = el('input', {
-      type: 'text', class: 'title-input', value: opp.title, placeholder: 'Opportunity title',
-      'aria-label': 'Opportunity title',
+      type: 'text', class: 'title-input', value: opp.title, placeholder: 'Income source title',
+      'aria-label': 'Income source title',
       oninput: () => { opp.title = title.value; ctx.changed({ light: true }); },
     });
 
@@ -48,7 +48,7 @@ export class OpportunityView {
       el('header', { class: 'opp-header' },
         title,
         el('button', {
-          class: 'icon-btn danger', title: 'Delete opportunity', 'aria-label': 'Delete opportunity',
+          class: 'icon-btn danger', title: 'Delete income source', 'aria-label': 'Delete income source',
           onclick: () => this.onDelete(),
         }, icon('trash'))),
       el('div', { class: 'opp-meta' },

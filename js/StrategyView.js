@@ -64,7 +64,7 @@ export class StrategyView {
         strategy.subGroups.push(Models.subGroup());
         ctx.structureChanged();
       },
-    }, icon('plus'), 'Add sub group'));
+    }, icon('plus'), 'Add Strategy Sub Group'));
 
     const beacon = Beacon.describe(this.position);
     this.root = el('section', { class: 'strategy' },

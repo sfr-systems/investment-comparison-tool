@@ -7,10 +7,10 @@ import { Risk } from './Risk.js';
 /** Totals footer groupings; `sg.totalsBy` saves the choice (individual by default). */
 const TOTALS_BY = [
   { key: 'individual', label: 'Individual', caption: 'Present value by individual' },
-  { key: 'opportunity', label: 'Opportunity', caption: 'Present value by opportunity' },
+  { key: 'opportunity', label: 'Source', caption: 'Present value by income source' },
 ];
 
-/** Collapsible sub group: opportunities + a PV footer by individual or by opportunity. */
+/** Collapsible sub group: income sources (opportunities) + a PV footer by individual or by source. */
 export class SubGroupView {
   constructor(subGroup, ctx, { onDelete }) {
     this.sg = subGroup;
@@ -40,7 +40,7 @@ export class SubGroupView {
     this.headerTotal = el('span', { class: 'header-total' });
     this.riskEl = Risk.indicator('risk-compact');
     this.list = el('div', { class: 'opportunity-list' });
-    // Reads as "Present value by [Individual | Opportunity]".
+    // Reads as "Present value by [Individual | Source]".
     const totalsCaption = el('div', { class: 'eyebrow totals-caption' }, 'Present value by');
     this.totalsRows = el('div', { class: 'totals-rows' });
     this.footer = el('div', { class: 'subgroup-totals' },
@@ -50,7 +50,7 @@ export class SubGroupView {
     this.children = sg.opportunities.map((opp) => {
       const view = new OpportunityView(opp, ctx, {
         onDelete: () => {
-          if (!confirmDelete('opportunity', opp.title)) return;
+          if (!confirmDelete('income source', opp.title)) return;
           sg.opportunities = sg.opportunities.filter((o) => o !== opp);
           ctx.structureChanged();
         },
@@ -59,7 +59,7 @@ export class SubGroupView {
       return view;
     });
     if (!sg.opportunities.length) {
-      this.list.append(el('p', { class: 'empty' }, 'No opportunities yet.'));
+      this.list.append(el('p', { class: 'empty' }, 'No income sources yet.'));
     }
 
     this.root = el('section', { class: 'subgroup' },
@@ -77,7 +77,7 @@ export class SubGroupView {
             sg.opportunities.push(Models.opportunity());
             ctx.structureChanged();
           },
-        }, icon('plus'), 'Add opportunity'),
+        }, icon('plus'), 'Add Income Source'),
         this.footer));
 
     this.syncCollapsed();
@@ -85,7 +85,7 @@ export class SubGroupView {
     return this.root;
   }
 
-  /** [Individual | Opportunity] toggle for the totals footer. */
+  /** [Individual | Source] toggle for the totals footer. */
   totalsByToggle() {
     const { sg, ctx } = this;
     const group = el('div', { class: 'unit-toggle totals-by', role: 'radiogroup', 'aria-label': 'Summarize by' });
