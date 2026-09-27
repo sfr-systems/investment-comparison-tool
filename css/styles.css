@@ -38,10 +38,10 @@
   --caution-deep: #8f6a12;
   /* Cash-flow chart series (validated categorical order; loan is the red slot) */
   --cf-salary: #2a78d6;
-  --cf-salary-invested: #eb6834;
+  --cf-salary-invested: #eda100;
   --cf-salary-growth: #4a3aa7;
   --cf-return: #1baf7a;
-  --cf-investment: #eda100;
+  --cf-investment: #eb6834;
   --cf-initial-payout: #e87ba4;
   --cf-final-payout: #008300;
   --cf-loan: #e34948;
@@ -78,10 +78,10 @@
   --risk-high: #f07a72;
   --caution-deep: #c9962e;
   --cf-salary: #3987e5;
-  --cf-salary-invested: #d95926;
+  --cf-salary-invested: #c98500;
   --cf-salary-growth: #9085e9;
   --cf-return: #199e70;
-  --cf-investment: #c98500;
+  --cf-investment: #d95926;
   --cf-initial-payout: #d55181;
   --cf-final-payout: #008300;
   --cf-loan: #e66767;
