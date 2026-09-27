@@ -36,15 +36,14 @@
   --risk-neutral: #b26f12;
   --risk-high: #c2413b;
   --caution-deep: #8f6a12;
-  /* Cash-flow chart series (validated categorical order; loan is the red slot) */
+  /* Cash-flow chart series (validated categorical order; growth series reuse their source's color, striped) */
   --cf-salary: #2a78d6;
   --cf-salary-invested: #eda100;
-  --cf-salary-growth: #4a3aa7;
   --cf-return: #1baf7a;
   --cf-investment: #eb6834;
-  --cf-initial-payout: #e87ba4;
+  --cf-initial-payout: #4a3aa7;
   --cf-final-payout: #008300;
-  --cf-loan: #e34948;
+  --cf-loan: #e87ba4;
   color-scheme: light;
 }
 
@@ -79,12 +78,11 @@
   --caution-deep: #c9962e;
   --cf-salary: #3987e5;
   --cf-salary-invested: #c98500;
-  --cf-salary-growth: #9085e9;
   --cf-return: #199e70;
   --cf-investment: #d95926;
-  --cf-initial-payout: #d55181;
+  --cf-initial-payout: #9085e9;
   --cf-final-payout: #008300;
-  --cf-loan: #e66767;
+  --cf-loan: #d55181;
   color-scheme: dark;
 }
 

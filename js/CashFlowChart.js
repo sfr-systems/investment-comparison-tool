@@ -4,22 +4,29 @@ import { Calculator } from './Calculator.js';
 /** Longest timespan the chart draws; longer ones show a note instead. */
 const MAX_YEARS = 20;
 
-/** Stack order, bottom to top, with each source's CSS color token. Keys match Calculator.yearlyCashFlows. */
+/**
+ * Stack order, bottom to top, with each source's CSS color token. Keys match Calculator.yearlyCashFlows.
+ * Growth on an invested amount shares that amount's color, striped (see fill).
+ */
 const INCOME = [
   { key: 'salary', label: 'Salary', color: '--cf-salary' },
   { key: 'salaryInvested', label: 'Salary invested', color: '--cf-salary-invested' },
-  { key: 'salaryGrowth', label: 'Invested salary growth', color: '--cf-salary-growth' },
+  { key: 'salaryGrowth', label: 'Invested salary growth', color: '--cf-salary-invested', striped: true },
   { key: 'yearlyReturn', label: 'Yearly return', color: '--cf-return' },
   { key: 'initial', label: 'Investment value', color: '--cf-investment' },
   { key: 'initialPayout', label: 'Initial payout', color: '--cf-initial-payout' },
-  // Same color as the payout it grows from; the legend lists it once, the tooltip names each.
-  { key: 'initialPayoutGrowth', label: 'Initial payout growth', color: '--cf-initial-payout', legend: false },
+  { key: 'initialPayoutGrowth', label: 'Initial payout growth', color: '--cf-initial-payout', striped: true },
   { key: 'payout', label: 'Final payout', color: '--cf-final-payout' },
 ];
 /** Deductions, drawn as positive amounts in their own bar. Only loan repayments are charted. */
 const COSTS = [
   { key: 'loan', label: 'Loan repayment', color: '--cf-loan' },
 ];
+
+/** A series' fill: its solid color, or diagonal stripes of the color and the color at 50% opacity. */
+const fill = ({ color, striped }) => (striped
+  ? `repeating-linear-gradient(45deg, var(${color}) 0 3px, color-mix(in srgb, var(${color}) 50%, transparent) 3px 6px)`
+  : `var(${color})`);
 
 const compact = new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 1,
@@ -198,7 +205,7 @@ export class CashFlowChart {
         style: { bottom: 0, height: pct(total) },
       }, items.map((s) => el('span', {
         class: 'cf-seg', dataset: { key: `${side}:${s.key}` },
-        style: { flexGrow: String(row[side][s.key]), background: `var(${s.color})` },
+        style: { flexGrow: String(row[side][s.key]), background: fill(s) },
       })));
     };
 
@@ -231,8 +238,8 @@ export class CashFlowChart {
     const startNote = this.years[0].year === 0 ? ' (0 = start)' : '';
 
     const legend = el('ul', { class: 'cf-legend' },
-      [...used(INCOME, 'income'), ...used(COSTS, 'costs')].filter((s) => s.legend !== false).map((s) =>
-        el('li', {}, el('span', { class: 'cf-swatch', style: { background: `var(${s.color})` } }), s.label)));
+      [...used(INCOME, 'income'), ...used(COSTS, 'costs')].map((s) =>
+        el('li', {}, el('span', { class: 'cf-swatch', style: { background: fill(s) } }), s.label)));
 
     this.active = -1;
     this.body.replaceChildren(
@@ -252,7 +259,7 @@ export class CashFlowChart {
 
     const row = this.years[i];
     const line = (s, side) => el('div', { class: 'cf-tip-row', dataset: { key: `${side}:${s.key}` } },
-      el('span', { class: 'cf-swatch', style: { background: `var(${s.color})` } }),
+      el('span', { class: 'cf-swatch', style: { background: fill(s) } }),
       el('span', {}, s.label), el('span', { class: 'cf-tip-value' }, signed(row[side][s.key])));
     const incomeRows = INCOME.filter((s) => row.income[s.key]);
     const costRows = COSTS.filter((s) => row.costs[s.key]);
