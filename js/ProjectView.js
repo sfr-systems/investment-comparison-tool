@@ -158,8 +158,7 @@ export class ProjectView {
     const { project, ctx } = this;
     this.children = project.strategies.map((strategy, i) => new StrategyView(strategy, ctx, {
       position: i + 1,
-      count: project.strategies.length,
-      onMove: (dir) => this.moveStrategy(i, dir),
+      onSwapUp: i > 0 ? () => this.swapStrategies(i) : null,
       onDelete: () => {
         if (!confirmDelete('strategy', strategy.title)) return;
         project.strategies = project.strategies.filter((s) => s !== strategy);
@@ -183,21 +182,16 @@ export class ProjectView {
     location.hash = `#/project/${encodeURIComponent(copy.id)}`;
   }
 
-  /** Move the strategy at `index` up (-1) or down (+1), keeping it in view and focused. */
-  moveStrategy(index, dir) {
+  /** Swap the strategy at `index` with the one above it; both flash, and focus stays on the swap button. */
+  swapStrategies(index) {
     const list = this.project.strategies;
-    const target = index + dir;
-    if (target < 0 || target >= list.length) return;
-    [list[index], list[target]] = [list[target], list[index]];
+    if (index < 1 || index >= list.length) return;
+    [list[index - 1], list[index]] = [list[index], list[index - 1]];
     this.save();
     this.renderStrategies();
-    const moved = this.children[target];
-    moved.flash();
-    // Keep keyboard focus on the same arrow so repeated presses keep moving it;
-    // if that arrow no longer exists (now first/last), fall back to the other one.
-    const btn = moved.moveButtons[dir < 0 ? 'up' : 'down'] ?? moved.moveButtons[dir < 0 ? 'down' : 'up'];
-    btn?.focus({ preventScroll: true });
-    moved.wrapper.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    this.children[index - 1].flash();
+    this.children[index].flash();
+    this.children[index].swapBtn?.focus({ preventScroll: true });
   }
 
   /** Recompute every PV readout and linked rate label in place (keeps input focus). */

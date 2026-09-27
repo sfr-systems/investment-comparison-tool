@@ -7,11 +7,11 @@ import { Risk } from './Risk.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
-  constructor(strategy, ctx, { position, count, onMove, onDelete }) {
+  /** onSwapUp: swap this strategy with the one above it (given for every strategy but the first). */
+  constructor(strategy, ctx, { position, onSwapUp, onDelete }) {
     this.strategy = strategy;
     this.position = position; // 1-based order in the project; drives the beacon numeral/color
-    this.count = count;
-    this.onMove = onMove;
+    this.onSwapUp = onSwapUp;
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.children = [];
@@ -93,7 +93,7 @@ export class StrategyView {
     // The badge straddles the strategy's top border, so it lives on an outer wrapper
     // (the strategy itself clips its content to its rounded corners).
     const wrapper = el('div', { class: 'strategy-wrap' },
-      Beacon.badge(this.position), this.moveControls(), this.root);
+      Beacon.badge(this.position), this.swapButton(), this.root);
     this.wrapper = wrapper;
     Beacon.paint(wrapper, this.position);
     this.syncCollapsed();
@@ -101,17 +101,19 @@ export class StrategyView {
     return wrapper;
   }
 
-  /** Up/down arrows on the left edge, shown on hover/focus; omitted where a move isn't possible. */
-  moveControls() {
-    this.moveButtons = {};
-    const button = (dir, label, glyph) => el('button', {
-      type: 'button', class: 'move-btn', title: label, 'aria-label': label,
-      onclick: () => this.onMove(dir),
-    }, icon(glyph));
-    if (this.position > 1) this.moveButtons.up = button(-1, 'Move strategy up', 'chevronUp');
-    if (this.position < this.count) this.moveButtons.down = button(1, 'Move strategy down', 'chevron');
-    const buttons = Object.values(this.moveButtons);
-    return buttons.length ? el('div', { class: 'strategy-move' }, ...buttons) : null;
+  /**
+   * Swap button centered in the gap above this strategy, trading places with the one above.
+   * Named by the two beacons, e.g. "Swap strategies I and II".
+   */
+  swapButton() {
+    if (!this.onSwapUp) return (this.swapBtn = null);
+    const above = Beacon.describe(this.position - 1).numeral;
+    const label = `Swap strategies ${above} and ${Beacon.describe(this.position).numeral}`;
+    this.swapBtn = el('button', {
+      type: 'button', class: 'strategy-swap', title: label, 'aria-label': label,
+      onclick: () => this.onSwapUp(),
+    }, icon('swap'));
+    return this.swapBtn;
   }
 
   /** Brief highlight after the strategy is moved. */

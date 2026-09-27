@@ -573,7 +573,7 @@ input.project-title {
   font-weight: 500;
 }
 
-.strategy-list { display: flex; flex-direction: column; gap: 28px; margin-bottom: 20px; padding-top: 6px; }
+.strategy-list { --strategy-gap: 36px; display: flex; flex-direction: column; gap: var(--strategy-gap); margin-bottom: 20px; padding-top: 6px; }
 
 /* Strategy */
 .strategy {
@@ -632,40 +632,34 @@ input.project-title {
 }
 
 .strategy-wrap { position: relative; }
-.strategy-move {
+/* Swap button, centered in the gap between two strategies */
+.strategy-swap {
   position: absolute;
-  top: 14px;
-  left: 0;
+  top: calc(var(--strategy-gap) / -2);
+  left: 50%;
   z-index: 4;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 3px;
-  transform: translateX(-50%);
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 999px;
-  box-shadow: var(--shadow-lg);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s;
-}
-.strategy-wrap:hover > .strategy-move,
-.strategy-wrap:focus-within > .strategy-move { opacity: 1; pointer-events: auto; }
-.move-btn {
+  transform: translate(-50%, -50%);
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 42px;
+  height: 42px;
   padding: 0;
-  border: none;
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
-  background: transparent;
+  background: var(--surface);
   color: var(--muted);
+  box-shadow: 0 0 0 4px var(--bg);
   cursor: pointer;
+  transition: color 0.15s, background-color 0.15s, border-color 0.15s;
 }
-.move-btn .icon { width: 14px; height: 14px; }
-.move-btn:hover { background: var(--accent-soft); color: var(--accent); }
+.strategy-swap .icon { width: 21px; height: 21px; transition: transform 0.3s ease; }
+.strategy-swap:hover {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+.strategy-swap:hover .icon { transform: rotate(180deg); }
+.strategy-swap:focus-visible { outline: none; box-shadow: 0 0 0 4px var(--bg), 0 0 0 7px color-mix(in srgb, var(--accent) 35%, transparent); }
 .strategy-wrap.just-moved > .strategy { animation: strategy-moved 0.9s ease-out; }
 @keyframes strategy-moved {
   0% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--beacon) 70%, transparent); }
