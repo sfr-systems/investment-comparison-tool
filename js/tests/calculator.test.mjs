@@ -171,6 +171,13 @@ check('breakdown: percent mode ignores raiseAmount', C.opportunityBreakdown(salO
 check('breakdown: indefinite ignores fixed increase', C.opportunityPV(salOpp({ amount: 1000,
   raiseMode: 'fixed', raiseAmount: 500 }, { yearsMode: 'indefinite' }), salSettings), 10000);
 
+// Discount-rate growth option follows the project's discount rate
+check('resolveRate discount', C.resolveRate({ mode: 'discount' }, { discountRate: 7 }), 0.07);
+// Initial investment growing at the discount rate is PV-neutral: 0
+check('investment at the discount rate → PV 0', C.opportunityPV({ yearsMode: 'custom', years: 10, payout: 0,
+  initial: { amount: 1000, rate: { mode: 'discount' } }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } },
+  { discountRate: 7 }), 0);
+
 // Yearly cash flows (chart): n = 2, d = 10%, S&P 20%
 const cfSettings = { discountRate: 10, sp500Rate: 20, loanRate: 5 };
 const cfOpp = {

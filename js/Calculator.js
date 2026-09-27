@@ -108,12 +108,13 @@ export class Calculator {
 
   /**
    * Resolve a stored rate selection to a decimal using project settings.
-   * rate: { mode: 'sp500' | 'loan' | 'custom' | 'none', custom: percent }
+   * rate: { mode: 'sp500' | 'loan' | 'discount' | 'custom' | 'none', custom: percent }
    */
   static resolveRate(rate, settings) {
     switch (rate?.mode) {
       case 'sp500': return (Number(settings.sp500Rate) || 0) / 100;
       case 'loan': return (Number(settings.loanRate) || 0) / 100;
+      case 'discount': return (Number(settings.discountRate) || 0) / 100;
       case 'custom': return (Number(rate.custom) || 0) / 100;
       default: return 0;
     }

@@ -94,7 +94,9 @@ export class OpportunityView {
 
   /** kind: 'lump' (one-time growth), 'stream' (yearly growth) or 'loan' (interest rate). */
   amountWithRate(label, group, rateLabel, kind) {
-    const selector = new RateSelector(group.rate, this.ctx, { label: `${label} ${rateLabel.toLowerCase()}` });
+    const selector = new RateSelector(group.rate, this.ctx, {
+      label: `${label} ${rateLabel.toLowerCase()}`, includeDiscount: kind !== 'loan',
+    });
     selector.kind = kind;
     this.rateSelectors.push(selector);
     return el('div', { class: 'field-group' },
@@ -157,7 +159,7 @@ export class OpportunityView {
    */
   salaryGroup(sal) {
     const { ctx } = this;
-    const investSelector = new RateSelector(sal.investRate, ctx, { label: 'Invested salary growth rate' });
+    const investSelector = new RateSelector(sal.investRate, ctx, { label: 'Invested salary growth rate', includeDiscount: true });
     investSelector.kind = 'lump';
     this.rateSelectors.push(investSelector);
 
@@ -275,7 +277,7 @@ export class OpportunityView {
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
   initialPayoutGroup(group) {
     const label = 'Initial payout (one-time)';
-    const selector = new RateSelector(group.rate, this.ctx, { label: `${label} growth rate` });
+    const selector = new RateSelector(group.rate, this.ctx, { label: `${label} growth rate`, includeDiscount: true });
     selector.kind = 'lump';
     this.rateSelectors.push(selector);
 

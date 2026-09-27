@@ -1,15 +1,16 @@
 import { el, numberInput, formatPct, icon } from './format.js';
 
 /**
- * Rate picker: [S&P 500 | Standard loan | Custom % | None].
- * Mutates the given rate object ({ mode, custom }). Standard modes are stored
- * by reference (mode only), so they track project settings automatically.
+ * Rate picker: [S&P 500 | Standard loan | Discount rate | Custom % | None]; Discount rate is only
+ * offered for growth rates (`includeDiscount`). Mutates the given rate object ({ mode, custom }).
+ * Standard modes are stored by reference (mode only), so they track project settings automatically.
  */
 export class RateSelector {
-  constructor(rate, ctx, { label = 'Rate' } = {}) {
+  constructor(rate, ctx, { label = 'Rate', includeDiscount = false } = {}) {
     this.rate = rate;
     this.ctx = ctx;
     this.label = label;
+    this.includeDiscount = includeDiscount;
   }
 
   render() {
@@ -24,6 +25,7 @@ export class RateSelector {
     this.options = {
       sp500: el('option', { value: 'sp500' }),
       loan: el('option', { value: 'loan' }),
+      ...(this.includeDiscount ? { discount: el('option', { value: 'discount' }) } : {}),
       custom: el('option', { value: 'custom' }, 'Custom %'),
       none: el('option', { value: 'none' }, 'None'),
     };
@@ -71,5 +73,6 @@ export class RateSelector {
     const s = this.ctx.project.settings;
     this.options.sp500.textContent = `S&P 500 (${formatPct(s.sp500Rate)})`;
     this.options.loan.textContent = `Standard loan (${formatPct(s.loanRate)})`;
+    if (this.options.discount) this.options.discount.textContent = `Discount rate (${formatPct(s.discountRate)})`;
   }
 }

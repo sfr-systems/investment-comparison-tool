@@ -74,7 +74,7 @@ validate inputs (non-negative amounts, n ≥ 1).
 ## Implementation notes
 - Run: `python3 -m http.server 8000` → http://localhost:8000
 - Calculator tests: `node js/tests/calculator.test.mjs`; display rounding tests: `node js/tests/format.test.mjs`; risk tests: `node js/tests/risk.test.mjs`
-- Rates are stored as `{ mode: 'sp500' | 'loan' | 'custom' | 'none', custom: <percent> }` and resolved against project settings at calc time, so standard options stay linked.
+- Rates are stored as `{ mode: 'sp500' | 'loan' | 'discount' | 'custom' | 'none', custom: <percent> }` and resolved against project settings at calc time, so standard options stay linked. "Discount rate" is offered only on growth-rate selectors (not the loan interest rate).
 - Persistence goes through `Storage`, which wraps an adapter (`LocalStorageAdapter`). Swap the adapter for a backend later.
 - Styling: tokens in `css/styles.css` `:root` (light + dark). Fonts Inter + Source Serif 4 load from Google Fonts and fall back to system fonts offline. Icons are inline SVGs via `icon()` in `js/format.js`.
 - Theme: `<html data-theme="light|dark">`. `js/theme-init.js` (classic script in `<head>`) sets it before paint; `ThemeToggle` switches it and saves the choice via `Storage.setPreference("theme")`. With no saved choice it follows the OS setting.
