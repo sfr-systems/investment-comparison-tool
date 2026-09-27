@@ -29,7 +29,9 @@ export class Models {
     return { id: Models.id(), title, collapsed: false, subGroups: [] };
   }
 
-  static subGroup(title = 'New Sub Group') {
+  static DEFAULT_SUBGROUP_TITLE = 'New Sub Group';
+
+  static subGroup(title = Models.DEFAULT_SUBGROUP_TITLE) {
     return { id: Models.id(), title, collapsed: false, opportunities: [] };
   }
 

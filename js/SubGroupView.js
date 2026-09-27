@@ -25,7 +25,7 @@ export class SubGroupView {
     const title = el('input', {
       type: 'text', class: 'title-input', value: sg.title, placeholder: 'Sub group title',
       'aria-label': 'Sub group title',
-      oninput: () => { sg.title = title.value; ctx.changed({ light: true }); },
+      oninput: () => { sg.title = title.value; this.syncTotalLabel(); ctx.changed({ light: true }); },
     });
 
     this.toggle = el('button', {
@@ -114,6 +114,14 @@ export class SubGroupView {
     return group;
   }
 
+  /** The grand total is labeled with the sub group's title once it's been named. */
+  syncTotalLabel() {
+    const name = (this.sg.title || '').trim();
+    const named = name && name !== Models.DEFAULT_SUBGROUP_TITLE;
+    this.totalLabel.textContent = named ? name : 'Sub group total';
+    this.totalLabel.title = named ? `${name} total` : '';
+  }
+
   syncCollapsed() {
     this.root.classList.toggle('collapsed', !!this.sg.collapsed);
     this.toggle.setAttribute('aria-expanded', String(!this.sg.collapsed));
@@ -136,9 +144,10 @@ export class SubGroupView {
       el('div', { class: 'total-row' }, el('span', { title: name }, name), amount(pv)));
     // The one place the exact (unrounded) present value is shown.
     rows.push(el('div', { class: 'total-row grand' },
-      el('span', {}, 'Sub group total'),
+      this.totalLabel = el('span', {}),
       el('span', { class: total < -0.005 ? 'negative' : '' }, formatUSD(total))));
     this.headerTotal.classList.toggle('negative', total < -0.005);
     this.totalsRows.replaceChildren(...rows);
+    this.syncTotalLabel();
   }
 }
