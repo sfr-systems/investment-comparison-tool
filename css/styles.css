@@ -1244,7 +1244,10 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
   border-radius: var(--radius);
   font-variant-numeric: tabular-nums;
 }
-.totals-caption { margin-bottom: 4px; }
+.totals-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin-bottom: 4px; }
+.totals-by { height: 28px; margin-left: auto; }
+.totals-by .unit-option { width: auto; padding: 0 8px; font-size: 11.5px; }
+.totals-rows { display: flex; flex-direction: column; gap: 6px; }
 .total-row {
   display: flex;
   justify-content: space-between;

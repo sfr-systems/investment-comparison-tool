@@ -108,7 +108,26 @@ export class Models {
     return project;
   }
 
-  static opportunity(title = 'New Opportunity') {
+  static DEFAULT_OPPORTUNITY_TITLE = 'New Opportunity';
+
+  /**
+   * Display names for a list of opportunities: their titles, except that unnamed ones (blank or
+   * still the default title) are numbered in list order when there's more than one of them,
+   * e.g. "New Opportunity 1", "New Opportunity 2". Titles themselves are left unchanged.
+   */
+  static opportunityLabels(opportunities) {
+    const base = Models.DEFAULT_OPPORTUNITY_TITLE;
+    const unnamed = (o) => !(o.title || '').trim() || o.title.trim() === base;
+    const count = opportunities.filter(unnamed).length;
+    let i = 0;
+    return opportunities.map((o) => {
+      if (!unnamed(o)) return o.title.trim();
+      i += 1;
+      return count > 1 ? `${base} ${i}` : base;
+    });
+  }
+
+  static opportunity(title = Models.DEFAULT_OPPORTUNITY_TITLE) {
     return {
       id: Models.id(),
       title,

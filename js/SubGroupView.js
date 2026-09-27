@@ -4,7 +4,13 @@ import { Calculator } from './Calculator.js';
 import { OpportunityView } from './OpportunityView.js';
 import { Risk } from './Risk.js';
 
-/** Collapsible sub group: opportunities + per-individual PV footer. */
+/** Totals footer groupings; `sg.totalsBy` saves the choice (individual by default). */
+const TOTALS_BY = [
+  { key: 'individual', label: 'Individual', caption: 'Present value by individual' },
+  { key: 'opportunity', label: 'Opportunity', caption: 'Present value by opportunity' },
+];
+
+/** Collapsible sub group: opportunities + a PV footer by individual or by opportunity. */
 export class SubGroupView {
   constructor(subGroup, ctx, { onDelete }) {
     this.sg = subGroup;
@@ -34,7 +40,12 @@ export class SubGroupView {
     this.headerTotal = el('span', { class: 'header-total' });
     this.riskEl = Risk.indicator('risk-compact');
     this.list = el('div', { class: 'opportunity-list' });
-    this.footer = el('div', { class: 'subgroup-totals' });
+    // Reads as "Present value by [Individual | Opportunity]".
+    const totalsCaption = el('div', { class: 'eyebrow totals-caption' }, 'Present value by');
+    this.totalsRows = el('div', { class: 'totals-rows' });
+    this.footer = el('div', { class: 'subgroup-totals' },
+      el('div', { class: 'totals-head' }, totalsCaption, this.totalsByToggle()),
+      this.totalsRows);
 
     this.children = sg.opportunities.map((opp) => {
       const view = new OpportunityView(opp, ctx, {
@@ -74,6 +85,35 @@ export class SubGroupView {
     return this.root;
   }
 
+  /** [Individual | Opportunity] toggle for the totals footer. */
+  totalsByToggle() {
+    const { sg, ctx } = this;
+    const group = el('div', { class: 'unit-toggle totals-by', role: 'radiogroup', 'aria-label': 'Summarize by' });
+    const buttons = TOTALS_BY.map((m) => el('button', {
+      type: 'button', class: 'unit-option', role: 'radio', title: m.caption,
+      onclick: () => {
+        if ((sg.totalsBy ?? 'individual') === m.key) return;
+        sg.totalsBy = m.key;
+        this.update();
+        ctx.changed({ light: true });
+      },
+    }, m.label));
+    this.syncTotalsBy = () => buttons.forEach((b, i) => {
+      const on = TOTALS_BY[i].key === (sg.totalsBy ?? 'individual');
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    group.addEventListener('keydown', (e) => {
+      const i = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0 }[e.key];
+      if (i == null) return;
+      e.preventDefault();
+      buttons[i].click();
+      buttons[i].focus();
+    });
+    group.append(...buttons);
+    return group;
+  }
+
   syncCollapsed() {
     this.root.classList.toggle('collapsed', !!this.sg.collapsed);
     this.toggle.setAttribute('aria-expanded', String(!this.sg.collapsed));
@@ -85,14 +125,20 @@ export class SubGroupView {
     showPV(this.headerTotal, total);
     Risk.render(this.riskEl, this.sg.opportunities, this.ctx.project.settings);
     const amount = (pv) => showPV(el('span', { class: pv < -0.005 ? 'negative' : '' }), pv);
-    const rows = [el('div', { class: 'eyebrow totals-caption' }, 'Present value by individual')];
-    rows.push(...byIndividual.map(([name, pv]) =>
-      el('div', { class: 'total-row' }, el('span', {}, name), amount(pv))));
+    const by = TOTALS_BY.find((m) => m.key === this.sg.totalsBy) ?? TOTALS_BY[0];
+    this.syncTotalsBy();
+    const settings = this.ctx.project.settings;
+    const labels = Models.opportunityLabels(this.sg.opportunities);
+    const lines = by.key === 'opportunity'
+      ? this.sg.opportunities.map((opp, i) => [labels[i], Calculator.opportunityPV(opp, settings)])
+      : byIndividual;
+    const rows = lines.map(([name, pv]) =>
+      el('div', { class: 'total-row' }, el('span', { title: name }, name), amount(pv)));
     // The one place the exact (unrounded) present value is shown.
     rows.push(el('div', { class: 'total-row grand' },
       el('span', {}, 'Sub group total'),
       el('span', { class: total < -0.005 ? 'negative' : '' }, formatUSD(total))));
     this.headerTotal.classList.toggle('negative', total < -0.005);
-    this.footer.replaceChildren(...rows);
+    this.totalsRows.replaceChildren(...rows);
   }
 }
