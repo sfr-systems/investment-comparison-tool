@@ -912,6 +912,14 @@ input.strategy-title {
 .indefinite-note[hidden] { display: none; }
 .indefinite-note strong { color: var(--text); font-weight: 600; }
 .indefinite-note .note-icon { width: 18px; height: 18px; margin-top: 1px; color: var(--risk-neutral); }
+.indefinite-note .note-content { flex: 1; min-width: 0; margin: 0; }
+.indefinite-note.is-collapsed .note-body { display: none; }
+.indefinite-note.is-collapsed { align-items: center; }
+.indefinite-note.is-collapsed .note-icon { margin-top: 0; }
+.note-toggle-btn { width: 24px; height: 24px; margin: -3px -4px -3px 0; color: var(--risk-neutral); }
+.note-toggle-btn .icon { width: 15px; height: 15px; transition: transform 0.2s ease; }
+.indefinite-note.is-collapsed .note-toggle-btn .icon { transform: rotate(180deg); }
+.note-toggle-btn:hover { background: color-mix(in srgb, var(--risk-neutral) 18%, transparent); color: var(--text); }
 .rate-selector select { flex: 1 1 auto; min-width: 0; }
 .rate-custom-wrap { display: none; flex: 0 0 84px; }
 .rate-selector.is-custom .rate-custom-wrap { display: flex; }

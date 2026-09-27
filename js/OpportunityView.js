@@ -58,7 +58,7 @@ export class OpportunityView {
           el('span', { class: 'field-label' }, 'Risk'),
           Risk.toggle(opp, () => ctx.changed()))),
       el('div', { class: 'opp-grid' },
-        this.indefiniteNote = el('p', { class: 'indefinite-note', role: 'note', hidden: true }),
+        this.indefiniteNote = this.buildIndefiniteNote(),
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate', 'loan'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate', 'lump'),
         this.initialPayoutGroup(opp.initialPayout),
@@ -98,6 +98,38 @@ export class OpportunityView {
       el('div', { class: 'field' },
         el('span', { class: 'field-label' }, rateLabel),
         selector.render()));
+  }
+
+  /**
+   * Caution shown on indefinite timespans. Open by default; the chevron collapses it to its
+   * heading line, and that choice is saved on the opportunity.
+   */
+  buildIndefiniteNote() {
+    const { opp, ctx } = this;
+    this.noteBody = el('span', { class: 'note-body', id: `note-${opp.id}` });
+    const toggle = el('button', {
+      type: 'button', class: 'icon-btn note-toggle-btn', 'aria-controls': `note-${opp.id}`,
+      onclick: () => {
+        opp.indefiniteNoteCollapsed = !opp.indefiniteNoteCollapsed;
+        sync();
+        ctx.changed({ light: true });
+      },
+    }, icon('chevronUp'));
+    const note = el('div', { class: 'indefinite-note', role: 'note', hidden: true },
+      icon('alert', 'note-icon'),
+      el('p', { class: 'note-content' },
+        el('strong', {}, 'Growth rates below are fixed on an indefinite timespan. '),
+        this.noteBody),
+      toggle);
+    const sync = () => {
+      const collapsed = !!opp.indefiniteNoteCollapsed;
+      note.classList.toggle('is-collapsed', collapsed);
+      toggle.setAttribute('aria-expanded', String(!collapsed));
+      toggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Hide details');
+      toggle.title = collapsed ? 'Show details' : 'Hide details';
+    };
+    sync();
+    return note;
   }
 
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
@@ -184,14 +216,10 @@ export class OpportunityView {
     this.payoutCheckbox.disabled = indefinite;
     this.indefiniteNote.hidden = !indefinite;
     if (indefinite) {
-      this.indefiniteNote.replaceChildren(
-        icon('alert', 'note-icon'),
-        el('span', {},
-          el('strong', {}, 'Growth rates below are fixed on an indefinite timespan. '),
-          'Any growth at or above the discount rate would make the present value infinite, so '
-          + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
-          + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
-          + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.'));
+      this.noteBody.textContent = 'Any growth at or above the discount rate would make the present value infinite, so '
+        + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
+        + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
+        + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.';
     }
     const unbounded = Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => !Number.isFinite(b[key])).map(([, label]) => label.toLowerCase());
