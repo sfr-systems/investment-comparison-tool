@@ -65,6 +65,7 @@ export class CashFlowChart {
       this.root.append(this.head);
     }
     this.root.append(this.body);
+    if (!this.expanded) new ResizeObserver(() => this.measureBelow()).observe(this.body);
     this.update();
     return this.root;
   }
@@ -139,6 +140,25 @@ export class CashFlowChart {
   }
 
   update() {
+    this.draw();
+    this.measureBelow();
+  }
+
+  /**
+   * At rest the card's chart hides its axis labels and legend and lets the plot grow into their
+   * space (see styles.css). `--cf-below` is the height of everything under the plot, which the
+   * plot gains while the chart's bottom margin gives the same amount back, so the card's height
+   * doesn't change.
+   */
+  measureBelow() {
+    if (this.expanded) return;
+    const below = this.plot ? this.body.offsetHeight - this.plot.offsetHeight : 0;
+    this.root.style.setProperty('--cf-below', `${below}px`);
+  }
+
+  draw() {
+    this.plot = null;
+    this.cols = null;
     this.syncToggle();
     this.syncCumulative();
     this.titleEl.textContent = this.opp.chartCumulative ? 'Cumulative cash flow' : 'Yearly cash flow';

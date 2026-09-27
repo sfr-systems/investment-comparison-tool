@@ -1050,10 +1050,7 @@ input:disabled { cursor: not-allowed; }
 .pv-breakdown dd { margin: 0; text-align: right; color: var(--text-2); }
 
 /* Yearly cash-flow chart (js/CashFlowChart.js) */
-.cash-flow-chart {
-  padding: 14px 16px 16px;
-  border-top: 1px solid var(--border);
-}
+.cash-flow-chart { padding: 14px 16px 16px; }
 .cf-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; margin-bottom: 10px; }
 .cf-actions, .cf-controls { display: flex; align-items: center; gap: 6px; }
 .cf-cumulative {
@@ -1092,7 +1089,7 @@ input:disabled { cursor: not-allowed; }
 .cf-frame {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: 175px auto auto;
+  grid-template-rows: auto auto auto;
   column-gap: 8px;
 }
 .cf-y-axis { position: relative; width: 40px; }
@@ -1106,7 +1103,7 @@ input:disabled { cursor: not-allowed; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
-.cf-plot { position: relative; border-radius: 4px; }
+.cf-plot { position: relative; height: 175px; border-radius: 4px; }
 .cf-plot:focus-visible { outline: none; box-shadow: var(--focus-ring); }
 .cf-grid span { position: absolute; left: 0; right: 0; border-top: 1px solid var(--border); }
 .cf-grid span.is-zero { border-top-color: var(--muted); }
@@ -1163,11 +1160,39 @@ input:disabled { cursor: not-allowed; }
    hovered or focused. The y-axis column collapses so the plot widens; the rest keep their space
    (no layout jump). Touch screens without hover always show everything. */
 @media (hover: hover) {
-  .cf-frame { transition: column-gap 0.2s ease; }
+  .cf-frame { transition: column-gap 0.2s ease, padding 0.2s ease, opacity 0.2s ease; }
+  /* The title is taken out of the flow so it can slide between left-aligned (hovered) and
+     centered (at rest); `left` and the transform animate together. */
+  .cf-head { position: relative; min-height: 30px; }
+  .cf-head > .eyebrow {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translate(0, -50%);
+    white-space: nowrap;
+    transition: left 0.2s ease, transform 0.2s ease;
+  }
+  .cf-head > .cf-actions { margin-left: auto; }
+  .cf-grid { transition: opacity 0.2s ease; }
+  /* At rest the plot grows into 80% of the space of the axis labels and legend (--cf-below,
+     measured in CashFlowChart) and the negative margin gives that back, so the card keeps its
+     height. */
+  .cf-plot { transition: height 0.2s ease; }
+  .cf-body { transition: margin-bottom 0.2s ease; }
+  .opportunity:not(:hover, :focus-within) .cf-plot { height: calc(175px + 0.8 * var(--cf-below, 0px)); }
+  .opportunity:not(:hover, :focus-within) .cf-body { margin-bottom: calc(-0.8 * var(--cf-below, 0px)); }
+  .opportunity:not(:hover, :focus-within) .cf-head > .eyebrow { left: 50%; transform: translate(-50%, -50%); }
+  .opportunity:not(:hover, :focus-within) .cf-grid { opacity: 0.5; }
   /* Clip only sideways, so the top and bottom labels (centered on their gridlines) stay whole. */
   .cf-y-axis { clip-path: inset(-12px 0); transition: width 0.2s ease, opacity 0.2s ease; }
   .cf-actions, .cf-x-axis, .cf-x-title, .cf-legend { transition: opacity 0.2s ease, visibility 0.2s; }
-  .opportunity:not(:hover, :focus-within) .cf-frame { column-gap: 0; }
+  /* The plot takes 80% of the y-axis column (40px + 8px gap); the other 20% is split either
+     side so the plot stays centered in the card. */
+  .opportunity:not(:hover, :focus-within) .cf-frame {
+    column-gap: 0;
+    padding-inline: calc((40px + 8px) * 0.1);
+    opacity: 0.75; /* the plot recedes at rest; the title stays at full strength */
+  }
   .opportunity:not(:hover, :focus-within) .cf-y-axis { width: 0; opacity: 0; }
   .opportunity:not(:hover, :focus-within) :is(.cf-actions, .cf-x-axis, .cf-x-title, .cf-legend) {
     opacity: 0;
@@ -1198,6 +1223,7 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .cf-dialog .cash-flow-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; border: none; }
 .cf-dialog .cf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .cf-dialog .cf-frame { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto auto; column-gap: 10px; }
+.cf-dialog .cf-plot { height: auto; }
 .cf-dialog .cf-y-axis { width: 52px; }
 .cf-dialog .cf-y-axis span,
 .cf-dialog .cf-x-axis span,
