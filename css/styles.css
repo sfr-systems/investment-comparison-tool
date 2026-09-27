@@ -780,9 +780,13 @@ input.strategy-title {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.2s ease;
 }
-.opportunity:hover, .opportunity:focus-within { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.opportunity:hover, .opportunity:focus-within {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow);
+  background: color-mix(in srgb, var(--accent) 3%, var(--surface)); /* a faint tint marks the active card */
+}
 .opp-header { display: flex; align-items: center; gap: 6px; padding: 10px 8px 2px 16px; }
 .opp-header input.title-input { flex: 1; font-size: 15px; }
 .opp-meta {
