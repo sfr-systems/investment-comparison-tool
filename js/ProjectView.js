@@ -1,6 +1,7 @@
 import { el, numberInput, debounce, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { StrategyView } from './StrategyView.js';
+import { StrategyRail } from './StrategyRail.js';
 import { REFERENCE_RATES as REF } from './referenceRates.js';
 
 /** Project page: settings bar + stacked strategies. Owns saving and live recalculation. */
@@ -23,6 +24,7 @@ export class ProjectView {
       changed: ({ light = false } = {}) => {
         this.save();
         if (!light) this.refresh();
+        this.rail?.refreshLabels();
       },
       /** Items added/removed: save and rebuild the strategy list. */
       structureChanged: () => {
@@ -103,6 +105,8 @@ export class ProjectView {
         },
       }, icon('plus'), 'Add strategy'));
 
+    this.rail = new StrategyRail(this.root.querySelector('.settings-bar'));
+    this.root.append(...this.rail.render());
     this.watchSettingsBar();
     this.renderStrategies();
     return this.root;
@@ -170,6 +174,7 @@ export class ProjectView {
       nodes.push(el('p', { class: 'empty big' }, 'No strategies yet. Add one to start comparing.'));
     }
     this.strategyList.replaceChildren(...nodes);
+    this.rail.setStrategies(this.children);
     this.refreshIndividuals();
   }
 
@@ -219,6 +224,7 @@ export class ProjectView {
     this.save.flush();
     this.stickyObserver?.disconnect();
     this.noteObserver?.disconnect();
+    this.rail?.destroy();
     window.removeEventListener('pagehide', this.onPageHide);
   }
 }

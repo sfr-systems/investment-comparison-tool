@@ -1300,6 +1300,144 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 }
 
 /* ==========================================================================
+   Strategy rail (js/StrategyRail.js): beacon numerals in the left gutter on
+   wide desktop screens, plus a faint page tint in the focused strategy's color
+   ========================================================================== */
+@property --tint {
+  syntax: "<color>";
+  inherits: false;
+  initial-value: transparent;
+}
+/* A barely-there glow on both side edges, strongest at mid-height */
+.page-tint {
+  --tint: var(--tint-light, transparent);
+  --tint-strength: 3.5%;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse 30% 65% at 0% 50%, color-mix(in srgb, var(--tint) var(--tint-strength), transparent), transparent),
+    radial-gradient(ellipse 30% 65% at 100% 50%, color-mix(in srgb, var(--tint) var(--tint-strength), transparent), transparent);
+  transition: opacity 0.6s ease, --tint 0.7s ease;
+}
+:root[data-theme="dark"] .page-tint {
+  --tint: var(--tint-dark, transparent);
+  --tint-strength: 6%;
+}
+.page-tint.is-visible { opacity: 1; }
+
+.strategy-rail { display: none; }
+@media (min-width: 1300px) and (hover: hover) and (pointer: fine) {
+  .strategy-rail {
+    position: fixed;
+    top: 50%;
+    /* Content starts at 50% - 566px. Centered in the space left of it,
+       but 16px from the content at least and 96px at most. */
+    left: calc(50% - 614px - clamp(16px, 25% - 307px, 96px));
+    z-index: 20;
+    display: block;
+    width: 48px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translate(-8px, -50%);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+  }
+  .strategy-rail.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(0, -50%);
+    transition-delay: 0s;
+  }
+}
+.rail-list {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.rail-list li {
+  --beacon: var(--beacon-light, var(--accent));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+:root[data-theme="dark"] .rail-list li { --beacon: var(--beacon-dark, var(--accent)); }
+.rail-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 28px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in srgb, var(--beacon) 45%, var(--muted));
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  cursor: pointer;
+  transition: font-size 0.25s ease, height 0.25s ease, min-width 0.25s ease,
+    color 0.2s, background-color 0.2s, box-shadow 0.2s;
+}
+.rail-item:hover { color: var(--beacon); background: color-mix(in srgb, var(--beacon) 12%, transparent); }
+.rail-item:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px color-mix(in srgb, var(--beacon) 55%, transparent); }
+/* The strategy in focus: an enlarged copy of its header badge */
+.rail-item[aria-current="true"] {
+  min-width: 48px;
+  height: 40px;
+  font-size: 21px;
+  color: var(--beacon);
+  background: color-mix(in srgb, var(--beacon) 14%, var(--surface));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--beacon) 60%, transparent),
+    0 6px 16px -8px color-mix(in srgb, var(--beacon) 70%, transparent);
+}
+/* Title label on hover / keyboard focus */
+.rail-item::after {
+  content: attr(data-label);
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 12px);
+  max-width: 260px;
+  overflow: hidden;
+  padding: 5px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transform: translate(-4px, -50%);
+  pointer-events: none;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.rail-item:hover::after,
+.rail-item:focus-visible::after { opacity: 1; transform: translate(0, -50%); }
+/* Line under each numeral: fills (in its color) as you read through that strategy */
+.rail-track {
+  width: 2px;
+  height: 18px;
+  margin: 4px 0;
+  border-radius: 1px;
+  background: linear-gradient(var(--beacon) calc(var(--fill, 0) * 100%), var(--border-strong) 0);
+}
+.rail-list li:last-child .rail-track { height: 12px; }
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
 @media (max-width: 900px) {
