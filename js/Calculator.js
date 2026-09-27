@@ -186,7 +186,9 @@ export class Calculator {
    * grown value (income at year n). Invested salary is shown as it builds up rather than as one
    * balance at year n: `salaryInvested` is the share of that year's pay put in, and
    * `salaryGrowth` the growth that year on what was put in before (no growth in the year earned),
-   * so over the years they add up to the final balance. Amounts are as received or accrued that
+   * so over the years they add up to the final balance. An initial payout is received at the start;
+   * if it's invested, `initialPayoutGrowth` is what it earns each year after that. Amounts are as
+   * received or accrued that
    * year; with `discounted` each is divided by (1+d)^t.
    */
   static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
@@ -206,8 +208,11 @@ export class Calculator {
     add(n, 'income', 'initial', I * Math.pow(1 + rate(opp.initial?.rate), n));
 
     const P0 = +opp.initialPayout?.amount || 0;
-    if (opp.initialPayout?.invest) add(n, 'income', 'initialPayout', P0 * Math.pow(1 + rate(opp.initialPayout.rate), n));
-    else add(0, 'income', 'initialPayout', P0);
+    add(0, 'income', 'initialPayout', P0);
+    if (opp.initialPayout?.invest) {
+      const g = rate(opp.initialPayout.rate);
+      for (let t = 1; t <= n; t++) add(t, 'income', 'initialPayoutGrowth', P0 * Math.pow(1 + g, t - 1) * g);
+    }
 
     const R = +opp.yearlyReturn?.amount || 0;
     const gR = rate(opp.yearlyReturn?.rate);

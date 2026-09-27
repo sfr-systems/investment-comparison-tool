@@ -203,7 +203,15 @@ check('cash flows: year 2 final payout 300', cf[2].income.payout, 300);
 check('cash flows: discounted year 2 growth', C.yearlyCashFlows(cfOpp, cfSettings, { discounted: true })[2]
   .income.salaryGrowth, 100 / 1.21);
 check('cash flows: no start column without start amounts', C.yearlyCashFlows({ ...cfOpp,
-  initial: { amount: 0 }, initialPayout: { amount: 200, invest: true, rate: { mode: 'sp500' } } }, cfSettings)[0].year, 1);
+  initial: { amount: 0 }, initialPayout: { amount: 0 } }, cfSettings)[0].year, 1);
+// Invested initial payout 1000 at S&P 20%, n = 2: received at the start, then earns 200, then 240
+const cfPay = C.yearlyCashFlows({ ...cfOpp, initialPayout: { amount: 1000, invest: true, rate: { mode: 'sp500' } } }, cfSettings);
+check('cash flows: invested initial payout received at start', cfPay[0].income.initialPayout, 1000);
+check('cash flows: initial payout growth year 1', cfPay[1].income.initialPayoutGrowth, 200);
+check('cash flows: initial payout growth year 2', cfPay[2].income.initialPayoutGrowth, 240);
+check('cash flows: payout + growth = 1000·1.2²', cfPay.reduce((a, r) =>
+  a + (r.income.initialPayout || 0) + (r.income.initialPayoutGrowth || 0), 0), 1440);
+check('cash flows: kept initial payout has no growth', cf.reduce((a, r) => a + (r.income.initialPayoutGrowth || 0), 0), 0);
 check('cash flows: indefinite → none', C.yearlyCashFlows({ ...cfOpp, yearsMode: 'indefinite' }, cfSettings) === null ? 1 : 0, 1);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };

@@ -12,6 +12,8 @@ const INCOME = [
   { key: 'yearlyReturn', label: 'Yearly return', color: '--cf-return' },
   { key: 'initial', label: 'Investment value', color: '--cf-investment' },
   { key: 'initialPayout', label: 'Initial payout', color: '--cf-initial-payout' },
+  // Same color as the payout it grows from; the legend lists it once, the tooltip names each.
+  { key: 'initialPayoutGrowth', label: 'Initial payout growth', color: '--cf-initial-payout', legend: false },
   { key: 'payout', label: 'Final payout', color: '--cf-final-payout' },
 ];
 /** Deductions, drawn as positive amounts in their own bar. Only loan repayments are charted. */
@@ -229,7 +231,7 @@ export class CashFlowChart {
     const startNote = this.years[0].year === 0 ? ' (0 = start)' : '';
 
     const legend = el('ul', { class: 'cf-legend' },
-      [...used(INCOME, 'income'), ...used(COSTS, 'costs')].map((s) =>
+      [...used(INCOME, 'income'), ...used(COSTS, 'costs')].filter((s) => s.legend !== false).map((s) =>
         el('li', {}, el('span', { class: 'cf-swatch', style: { background: `var(${s.color})` } }), s.label)));
 
     this.active = -1;
