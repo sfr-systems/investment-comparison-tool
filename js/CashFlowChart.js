@@ -23,9 +23,9 @@ const COSTS = [
   { key: 'loan', label: 'Loan repayment', color: '--cf-loan' },
 ];
 
-/** A series' fill: its solid color, or diagonal stripes of the color and the color at 50% opacity. */
+/** A series' fill: its solid color, or diagonal stripes of the color and the color at 75% opacity. */
 const fill = ({ color, striped }) => (striped
-  ? `repeating-linear-gradient(45deg, var(${color}) 0 3px, color-mix(in srgb, var(${color}) 50%, transparent) 3px 6px)`
+  ? `repeating-linear-gradient(45deg, var(${color}) 0 3px, color-mix(in srgb, var(${color}) 75%, transparent) 3px 6px)`
   : `var(${color})`);
 
 const compact = new Intl.NumberFormat('en-US', {
