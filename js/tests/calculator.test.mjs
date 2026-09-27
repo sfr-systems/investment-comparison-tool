@@ -121,6 +121,45 @@ check('finite timespan keeps entered growth',
   C.opportunityBreakdown({ ...growthOpp, yearsMode: 'custom', years: 2 }, indefSettings).salary,
   40000 / 1.07 + 40000 * 1.12 / 1.07 ** 2);
 
+// ---- Salary: yearly increase, cap, and investing part of each year's pay
+const sal = (o, d, n) => { const r = C.salaryPV(o, d, n); return r.kept + r.invested; };
+// Raise 10%, d 10%, n 3: pays 1000, 1100, 1210 → each worth 909.0909 today = 2727.2727
+check('salary raise 10%, no cap', sal({ S: 1000, g: 0.10 }, 0.10, 3), 2727.2727);
+// Cap 1100: pays 1000, 1100, 1100 → 909.0909 + 909.0909 + 826.4463 = 2644.6281
+check('salary raise 10%, cap 1,100', sal({ S: 1000, g: 0.10, cap: 1100 }, 0.10, 3), 2644.6281);
+// Cap below starting pay: pay isn't cut, but it's already at/over the cap, so no raises (flat 1000)
+check('cap below starting pay: no cut, no raises', sal({ S: 1000, g: 0.10, cap: 500 }, 0.10, 3), 2486.8520);
+check('cap ignored without a raise', sal({ S: 1000, g: 0, cap: 500 }, 0.10, 3), 2486.8520);
+// Invest 50% at 20%, d 10%, n 2, flat 1000:
+//   kept 500/1.1 + 500/1.21 = 867.7686; invested 500·(1.2 + 1)/1.21 = 909.0909 (year-2 pay grows 0 years)
+const split = C.salaryPV({ S: 1000, p: 0.5, gi: 0.20 }, 0.10, 2);
+check('salary kept share', split.kept, 867.7686);
+check('salary invested share', split.invested, 909.0909);
+// Timing: pay invested at the end of the year earns nothing that year (n = 1 → no growth at all)
+check('invested pay earns nothing in its own year', C.salaryPV({ S: 1000, p: 1, gi: 0.50 }, 0, 1).invested, 1000);
+// Investing at the discount rate is PV-neutral: same as keeping it (annuity 2486.8520)
+check('investing at d = keeping', sal({ S: 1000, p: 1, gi: 0.10 }, 0.10, 3), 2486.8520);
+// Indefinite: perpetuity S/d split by share; no NaN at p = 0 or 1; unbounded at d = 0
+const indefSal = C.salaryPV({ S: 1000, p: 0.25, gi: 0.30, g: 0.2, cap: 5 }, 0.10, Infinity);
+check('indefinite kept 75% of 10,000', indefSal.kept, 7500);
+check('indefinite invested 25% of 10,000', indefSal.invested, 2500);
+check('indefinite p=0 invested is 0', C.salaryPV({ S: 1000, p: 0 }, 0.10, Infinity).invested, 0);
+check('indefinite p=1 kept is 0', C.salaryPV({ S: 1000, p: 1 }, 0.10, Infinity).kept, 0);
+check('indefinite at d=0 unbounded', C.salaryPV({ S: 1000 }, 0, Infinity).kept, Infinity);
+// Through opportunityBreakdown: raise is a percent field; indefinite ignores raise/cap/invest growth
+const salSettings = { discountRate: 10, sp500Rate: 20, loanRate: 5, defaultYears: 2 };
+const salOpp = (salary, extra = {}) => ({
+  yearsMode: 'custom', years: 2, payout: 0, initial: { amount: 0 }, yearlyReturn: { amount: 0 },
+  loan: { amount: 0 }, salary, ...extra });
+const sb = C.opportunityBreakdown(salOpp({ amount: 1000, raise: 0, invest: true, investPct: 50,
+  investRate: { mode: 'sp500' } }), salSettings);
+check('breakdown: kept salary', sb.salary, 867.7686);
+check('breakdown: invested salary at linked S&P 20%', sb.salaryInvested, 909.0909);
+check('breakdown: invest off ignores investPct', C.opportunityBreakdown(salOpp({ amount: 1000, raise: 0,
+  invest: false, investPct: 50, investRate: { mode: 'sp500' } }), salSettings).salaryInvested, 0);
+check('breakdown: indefinite salary = S/d regardless', C.opportunityPV(salOpp({ amount: 1000, raise: 15,
+  cap: 1200, invest: true, investPct: 40, investRate: { mode: 'sp500' } }, { yearsMode: 'indefinite' }), salSettings), 10000);
+
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);
 check('sub group total', totals.total, 2 * (-92.9705 + 1886.6213 - 1000));

@@ -43,6 +43,32 @@ export class Calculator {
     return pv;
   }
 
+  /**
+   * Yearly salary S paid at the end of each year t = 1..n, rising by g a year until it reaches
+   * `cap` (the cap never lowers pay below S, and only applies when g > 0).
+   * A share p of each year's pay is invested at the end of that year and grows at gi from the
+   * following year until year n, where it's counted: p·pay_t·(1+gi)^(n−t) / (1+d)^n.
+   * Returns { kept, invested } present values.
+   * Indefinite: no raises or cap and invested pay grows at d, so the total is the perpetuity S/d.
+   */
+  static salaryPV({ S, g = 0, cap = null, p = 0, gi = 0 }, d, n) {
+    if (!S) return { kept: 0, invested: 0 };
+    if (n === Infinity) {
+      const total = Calculator.growingAnnuityPV(S, 0, d, Infinity);
+      return { kept: p >= 1 ? 0 : total * (1 - p), invested: p <= 0 ? 0 : total * p };
+    }
+    const ceiling = g > 0 && cap != null ? Math.max(cap, S) : Infinity;
+    const endDiscount = Math.pow(1 + d, n);
+    let kept = 0;
+    let invested = 0;
+    for (let t = 1; t <= n; t++) {
+      const pay = Math.min(S * Math.pow(1 + g, t - 1), ceiling);
+      kept += ((1 - p) * pay) / Math.pow(1 + d, t);
+      invested += (p * pay * Math.pow(1 + gi, n - t)) / endDiscount;
+    }
+    return { kept, invested };
+  }
+
   /** P / (1+d)^n. Indefinite: the end never comes, so the payout is never received. */
   static payoutPV(P, d, n) {
     if (!P) return 0;
@@ -112,12 +138,28 @@ export class Calculator {
       initialPayout: Calculator.initialPayoutPV(+opp.initialPayout?.amount || 0,
         !!opp.initialPayout?.invest, lumpGrowth(opp.initialPayout?.rate), d, n),
       yearlyReturn: Calculator.growingAnnuityPV(+opp.yearlyReturn.amount || 0, streamGrowth(opp.yearlyReturn.rate), d, n),
-      salary: Calculator.growingAnnuityPV(+opp.salary.amount || 0, streamGrowth(opp.salary.rate), d, n),
+      ...Calculator.salaryParts(opp.salary, settings, d, n),
       payout: Calculator.payoutPV(+opp.payout || 0, d, n),
       loan: Calculator.loanPV(+opp.loan.amount || 0, rate(opp.loan.rate), d, n),
     };
     const total = Object.values(parts).reduce((a, b) => a + b, 0);
     return { ...parts, total };
+  }
+
+  /** { salary, salaryInvested } for an opportunity's salary settings. */
+  static salaryParts(sal = {}, settings, d, n) {
+    const indefinite = n === Infinity;
+    // `raise` is a percent; salaries saved before it existed used a rate selector.
+    const raise = sal.raise != null ? (Number(sal.raise) || 0) / 100 : Calculator.resolveRate(sal.rate, settings);
+    const investing = !!sal.invest;
+    const { kept, invested } = Calculator.salaryPV({
+      S: +sal.amount || 0,
+      g: indefinite ? 0 : raise,
+      cap: indefinite ? null : sal.cap,
+      p: investing ? Math.min(100, Math.max(0, Number(sal.investPct ?? 100))) / 100 : 0,
+      gi: indefinite ? d : Calculator.resolveRate(sal.investRate, settings),
+    }, d, n);
+    return { salary: kept, salaryInvested: invested };
   }
 
   static opportunityPV(opp, settings) {

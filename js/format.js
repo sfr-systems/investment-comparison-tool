@@ -101,10 +101,11 @@ export function groupDigits(str) {
  * Validated numeric text input with thousands separators (type="number" can't show commas).
  * Calls onValue(number) only when the value passes:
  *   min (inclusive), greaterThan (exclusive), integer, emptyAs (value used when blank; null = blank invalid).
+ * max (inclusive); optional: blank is valid and reported as null.
  * arrowStep: when set, ArrowUp/ArrowDown add/subtract this amount (staying within the rules above).
  */
-export function numberInput({ value, min, greaterThan, integer = false, emptyAs = 0,
-  arrowStep = null, message = 'Invalid value', onValue, ...attrs }) {
+export function numberInput({ value, min, max, greaterThan, integer = false, emptyAs = 0,
+  optional = false, arrowStep = null, message = 'Invalid value', onValue, ...attrs }) {
   const input = el('input', {
     type: 'text',
     inputMode: integer ? 'numeric' : 'decimal',
@@ -132,10 +133,12 @@ export function numberInput({ value, min, greaterThan, integer = false, emptyAs 
 
   const validate = () => {
     const raw = input.value.replace(/,/g, '').trim();
+    if (optional && raw === '') { setValidity(input, true); onValue(null); return; }
     const wellFormed = raw === '' || /^-?(\d+\.?\d*|\.\d+)$/.test(raw);
     const n = raw === '' ? emptyAs : Number(raw);
     let ok = wellFormed && n != null && Number.isFinite(n);
     if (ok && min != null && n < min) ok = false;
+    if (ok && max != null && n > max) ok = false;
     if (ok && greaterThan != null && n <= greaterThan) ok = false;
     if (ok && integer && !Number.isInteger(n)) ok = false;
     if (setValidity(input, ok, message)) onValue(n);
@@ -152,6 +155,7 @@ export function numberInput({ value, min, greaterThan, integer = false, emptyAs 
       // Round to avoid float drift (e.g. 5.1 + 1 = 6.1, not 6.1000000000000005).
       const next = Math.round((base + (e.key === 'ArrowUp' ? arrowStep : -arrowStep)) * 1e6) / 1e6;
       if (min != null && next < min) return;
+      if (max != null && next > max) return;
       if (greaterThan != null && next <= greaterThan) return;
       if (integer && !Number.isInteger(next)) return;
       input.value = groupDigits(String(next));
@@ -168,6 +172,7 @@ const ICON_PATHS = {
   plus: '<path d="M12 5v14M5 12h14"/>',
   arrowLeft: '<path d="M19 12H5M12 19l-7-7 7-7"/>',
   arrowRight: '<path d="M5 12h14M12 5l7 7-7 7"/>',
+  info: '<circle cx="12" cy="12" r="9.5"/><path d="M12 11v6M12 7.5h.01"/>',
   copy: '<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/>',
   alert: '<path d="M10.3 3.9 1.8 18.2a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5M12 17.5h.01"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',

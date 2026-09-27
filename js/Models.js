@@ -30,14 +30,38 @@ export class Models {
     return { id: Models.id(), title, collapsed: false, opportunities: [] };
   }
 
+  /**
+   * Yearly salary: raise is a yearly % increase, cap an optional maximum (null = none);
+   * when `invest` is on, investPct % of each year's pay is invested at year end at investRate.
+   */
+  static salary() {
+    return {
+      amount: 0, raise: 0, cap: null,
+      invest: false, investPct: 100, investRate: Models.rate('sp500'),
+    };
+  }
+
   /** Paid to the individual at t = 0; optionally invested until the end of the timespan. */
   static initialPayout() {
     return { amount: 0, invest: false, rate: Models.rate('sp500') };
   }
 
   /** Fill fields added after an opportunity was saved (older projects). */
-  static upgradeOpportunity(opp) {
+  static upgradeOpportunity(opp, settings = {}) {
     opp.initialPayout ??= Models.initialPayout();
+    const sal = (opp.salary ??= Models.salary());
+    if (sal.raise == null) {
+      // Older salaries had a growth-rate selector; keep its current value as the yearly increase.
+      const r = sal.rate ?? {};
+      sal.raise = r.mode === 'custom' ? Number(r.custom) || 0
+        : r.mode === 'sp500' ? Number(settings.sp500Rate) || 0
+          : r.mode === 'loan' ? Number(settings.loanRate) || 0 : 0;
+      delete sal.rate;
+    }
+    sal.cap ??= null;
+    sal.invest ??= false;
+    sal.investPct ??= 100;
+    sal.investRate ??= Models.rate('sp500');
     opp.risk ??= 'neutral';
     opp.yearsMode ??= 'custom'; // saved before default timespans existed: keep their years
     return opp;
@@ -77,7 +101,7 @@ export class Models {
     for (const st of project.strategies) delete st.beacon; // beacons are now positional
     for (const st of project.strategies)
       for (const sg of st.subGroups)
-        sg.opportunities.forEach(Models.upgradeOpportunity);
+        sg.opportunities.forEach((opp) => Models.upgradeOpportunity(opp, project.settings));
     return project;
   }
 
@@ -92,7 +116,7 @@ export class Models {
       initial: { amount: 0, rate: Models.rate('sp500') },
       initialPayout: Models.initialPayout(),
       yearlyReturn: { amount: 0, rate: Models.rate('none') },
-      salary: { amount: 0, rate: Models.rate('none') },
+      salary: Models.salary(),
       payout: 0,
       loan: { amount: 0, rate: Models.rate('loan') },
     };

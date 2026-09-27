@@ -783,6 +783,30 @@ input.strategy-title {
 
 /* Initial payout: rate column appears only when the payout is invested */
 .payout-group > .checkbox { grid-column: 1 / -1; margin-top: -4px; }
+
+/* Yearly salary: increase, cap, and optional investing */
+.salary-group > .checkbox,
+.salary-group > .info-note { grid-column: 1 / -1; }
+.salary-group > .checkbox { margin-top: -2px; }
+.salary-group:not(.is-investing) > .salary-invest { display: none; }
+.field.is-disabled { opacity: 0.55; }
+input:disabled::placeholder { opacity: 0.6; }
+
+.info-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.info-note .note-icon { width: 16px; height: 16px; margin-top: 1px; color: var(--accent); }
 .payout-group:not(.is-invested) > .field:first-child { grid-column: 1 / -1; }
 .payout-group:not(.is-invested) > .payout-rate { display: none; }
 
@@ -873,8 +897,10 @@ input.strategy-title {
 
 .rate-selector { display: flex; gap: 6px; min-width: 0; }
 .rate-locked { display: none; }
+.lockable.is-locked > :not(.rate-locked) { display: none !important; }
 .rate-selector.is-locked > select,
 .rate-selector.is-locked > .rate-custom-wrap { display: none !important; }
+.lockable.is-locked > .rate-locked,
 .rate-selector.is-locked > .rate-locked {
   display: flex;
   align-items: center;
@@ -950,8 +976,8 @@ input.strategy-title {
   line-height: 1.45;
 }
 .pv-warning[hidden] { display: none; }
-.opportunity.is-indefinite .opp-grid > .field:last-child { opacity: 0.5; }
-.opportunity.is-indefinite .opp-grid > .field:last-child .field-label::after { content: " · not received (indefinite)"; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.opportunity.is-indefinite .final-payout-field { opacity: 0.5; }
+.opportunity.is-indefinite .final-payout-field .field-label::after { content: " · not received (indefinite)"; text-transform: none; letter-spacing: 0; font-weight: 500; }
 input:disabled { cursor: not-allowed; }
 .pv-breakdown {
   display: grid;

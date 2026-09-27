@@ -9,14 +9,15 @@ const BREAKDOWN_LABELS = {
   initial: 'Investment',
   initialPayout: 'Initial payout',
   yearlyReturn: 'Returns',
-  salary: 'Salary',
   payout: 'Final payout',
+  salary: 'Salary',
+  salaryInvested: 'Invested salary',
 };
 
 /** One opportunity card: inputs + live PV. */
 export class OpportunityView {
   constructor(opp, ctx, { onDelete }) {
-    this.opp = Models.upgradeOpportunity(opp);
+    this.opp = Models.upgradeOpportunity(opp, ctx.project.settings);
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.rateSelectors = [];
@@ -63,9 +64,10 @@ export class OpportunityView {
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate', 'lump'),
         this.initialPayoutGroup(opp.initialPayout),
         this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate', 'stream'),
-        this.amountWithRate('Yearly salary', opp.salary, 'Growth rate', 'stream'),
         this.finalPayoutField = this.field('Final payout (one-time)',
-          this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)'))),
+          this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)')),
+
+        this.salaryGroup(opp.salary)),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
@@ -130,6 +132,80 @@ export class OpportunityView {
     };
     sync();
     return note;
+  }
+
+  /**
+   * Yearly salary: amount, yearly increase %, optional cap (enabled once there's an increase),
+   * and an "invest some or all" option with its % and growth rate plus a timing note.
+   */
+  salaryGroup(sal) {
+    const { ctx } = this;
+    const investSelector = new RateSelector(sal.investRate, ctx, { label: 'Invested salary growth rate' });
+    investSelector.kind = 'lump';
+    this.rateSelectors.push(investSelector);
+
+    const pctField = (input) => el('span', { class: 'with-suffix' }, input, el('span', { class: 'suffix' }, '%'));
+    const raiseInput = numberInput({
+      value: sal.raise ?? 0, greaterThan: -100, arrowStep: 1,
+      message: 'Increase must be greater than -100%', 'aria-label': 'Yearly salary increase',
+      onValue: (n) => { sal.raise = n; ctx.changed(); },
+    });
+    this.raiseLocked = el('span', { class: 'rate-locked' });
+    this.raiseBox = el('div', { class: 'lockable' }, pctField(raiseInput), this.raiseLocked);
+
+    this.capInput = numberInput({
+      value: sal.cap ?? '', min: 0, optional: true, class: 'amount', placeholder: 'No cap',
+      message: 'Cap must be zero or positive', 'aria-label': 'Salary cap',
+      onValue: (n) => { sal.cap = n; ctx.changed(); },
+    });
+    this.capField = this.field('Salary cap',
+      el('span', { class: 'with-prefix' }, el('span', { class: 'prefix' }, '$'), this.capInput));
+
+    const investPct = numberInput({
+      value: sal.investPct ?? 100, min: 0, max: 100, arrowStep: 5,
+      message: 'Enter a percentage from 0 to 100', 'aria-label': 'Percent of salary invested',
+      onValue: (n) => { sal.investPct = n; ctx.changed(); },
+    });
+
+    const root = el('div', { class: 'field-group salary-group' });
+    const sync = () => root.classList.toggle('is-investing', !!sal.invest);
+    const checkbox = el('input', {
+      type: 'checkbox', checked: !!sal.invest,
+      onchange: () => { sal.invest = checkbox.checked; sync(); ctx.changed(); },
+    });
+
+    root.append(
+      this.field('Yearly salary', this.amountInput(sal.amount, (n) => { sal.amount = n; }, 'Yearly salary')),
+      el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'Yearly increase'), this.raiseBox),
+      this.capField,
+      el('label', { class: 'checkbox' }, checkbox,
+        el('span', {}, 'Invest some or all salary earnings at the end of each year')),
+      Object.assign(this.field('Salary invested', pctField(investPct)), { className: 'field salary-invest' }),
+      el('div', { class: 'field salary-invest' },
+        el('span', { class: 'field-label' }, 'Growth rate'), investSelector.render()),
+      el('p', { class: 'info-note salary-invest' },
+        icon('info', 'note-icon'),
+        el('span', {},
+          'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
+          + 'It starts growing the following year and compounds every year after that; the balance is '
+          + 'counted at its value at the end of the timespan.')));
+    sync();
+    return root;
+  }
+
+  /** Salary controls that depend on the raise and the timespan. */
+  syncSalary(indefinite) {
+    const sal = this.opp.salary;
+    const hasRaise = Number(sal.raise) > 0;
+    const capOff = indefinite || !hasRaise;
+    this.capInput.disabled = capOff;
+    this.capField.classList.toggle('is-disabled', capOff);
+    this.capField.title = indefinite ? 'Not used on an indefinite timespan'
+      : hasRaise ? '' : 'Set a yearly increase above 0% to use a cap';
+    this.raiseBox.classList.toggle('is-locked', indefinite);
+    this.raiseBox.querySelector('input').disabled = indefinite;
+    this.raiseLocked.replaceChildren(...(indefinite ? [icon('alert'), el('span', {}, 'None (held constant)')] : []));
+    this.raiseLocked.title = indefinite ? 'Fixed while the timespan is Indefinite' : '';
   }
 
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
@@ -206,6 +282,7 @@ export class OpportunityView {
     const payoutInput = this.finalPayoutField.querySelector('input');
     payoutInput.disabled = indefinite;
     this.finalPayoutField.title = indefinite ? 'Never received on an indefinite timespan' : '';
+    this.finalPayoutField.classList.add('final-payout-field');
 
     // Indefinite: growth rates are fixed (see Calculator.opportunityBreakdown) and explained.
     const d = Number(this.ctx.project.settings.discountRate) || 0;
@@ -214,11 +291,13 @@ export class OpportunityView {
       if (r.kind === 'stream') r.setLocked(indefinite ? 'None (held constant)' : null);
     });
     this.payoutCheckbox.disabled = indefinite;
+    this.syncSalary(indefinite);
     this.indefiniteNote.hidden = !indefinite;
     if (indefinite) {
       this.noteBody.textContent = 'Any growth at or above the discount rate would make the present value infinite, so '
         + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
-        + 'and yearly return and salary are held constant, valued as a perpetuity (amount ÷ discount rate). '
+        + 'yearly return and salary are held constant (no salary increase or cap), valued as a perpetuity '
+        + '(amount ÷ discount rate), and invested salary grows at the discount rate. '
         + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.';
     }
     const unbounded = Object.entries(BREAKDOWN_LABELS)

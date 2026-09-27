@@ -36,8 +36,9 @@ Footer: PV subtotal per individual (plus "Unassigned"), then the sub group's tot
 - Initial investment + growth rate
 - Initial payout (one-time), paid at start + option to invest it for the timespan at a growth rate
 - Yearly return + growth rate
-- Yearly salary + growth rate
 - Final payout (one-time), paid at end
+- Yearly salary + yearly increase %, optional salary cap (enabled only with an increase > 0),
+  and "invest some or all salary at the end of each year" → % invested + growth rate, with a timing note
 Every rate field has a selector: [S&P 500 | Standard loan | Custom % | None].
 Standard options stay linked to the project value (update when it changes).
 Display the opportunity's PV.
@@ -45,7 +46,9 @@ Display the opportunity's PV.
 ## PV math (put in its own Calculator class; d = discount rate, t = 1..n)
 - Initial investment I, growth g:  −I + I(1+g)^n / (1+d)^n
 - Yearly return R, growth g:       Σ R(1+g)^(t−1) / (1+d)^t
-- Yearly salary S, growth g:       Σ S(1+g)^(t−1) / (1+d)^t
+- Yearly salary S, increase g:     pay_t = min(S(1+g)^(t−1), max(cap, S)) (cap only when g > 0);
+                                   kept Σ (1−p)·pay_t / (1+d)^t + invested Σ p·pay_t(1+gi)^(n−t) / (1+d)^n
+                                   (p = share invested at year end, gi = its growth; no growth in the year earned)
 - Initial payout P0 (one-time, paid at start): +P0; if invested at g for the timespan: P0(1+g)^n / (1+d)^n
 - Final payout P (one-time):       P / (1+d)^n
 - Loan L at rate r:                −Σ A / (1+d)^t (repayments only; the borrowed cash is assumed spent on the
