@@ -39,6 +39,7 @@
   /* Cash-flow chart series (validated categorical order; loan is the red slot) */
   --cf-salary: #2a78d6;
   --cf-salary-invested: #eb6834;
+  --cf-salary-growth: #4a3aa7;
   --cf-return: #1baf7a;
   --cf-investment: #eda100;
   --cf-initial-payout: #e87ba4;
@@ -78,6 +79,7 @@
   --caution-deep: #c9962e;
   --cf-salary: #3987e5;
   --cf-salary-invested: #d95926;
+  --cf-salary-growth: #9085e9;
   --cf-return: #199e70;
   --cf-investment: #c98500;
   --cf-initial-payout: #d55181;

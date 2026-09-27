@@ -186,16 +186,22 @@ check('cash flows: start + 2 years', cf.length, 3);
 check('cash flows: start payout 200', cf[0].income.initialPayout, 200);
 check('cash flows: start investment paid −1000', cf[0].costs.initial, -1000);
 check('cash flows: year 1 salary kept 500', cf[1].income.salary, 500);
+check('cash flows: year 1 salary invested 500', cf[1].income.salaryInvested, 500);
+check('cash flows: year 1 no growth in the year earned', cf[1].income.salaryGrowth ?? 0, 0);
 check('cash flows: year 1 return 100', cf[1].income.yearlyReturn, 100);
 check('cash flows: year 1 loan −500', cf[1].costs.loan, -500);
 check('cash flows: year 2 investment 1000·1.1² = 1210', cf[2].income.initial, 1210);
-// 500·1.2 (year-1 pay, one year of growth) + 500 (year-2 pay, none) = 1100
-check('cash flows: year 2 invested salary 1100', cf[2].income.salaryInvested, 1100);
+check('cash flows: year 2 salary invested 500', cf[2].income.salaryInvested, 500);
+// Year-1 contribution 500 grows 20% in year 2
+check('cash flows: year 2 invested salary growth 100', cf[2].income.salaryGrowth, 100);
+// Contributions + growth over the years = final balance 500·1.2 + 500 = 1100 (the breakdown's invested salary, undiscounted)
+const cfInvested = cf.reduce((a, r) => a + (r.income.salaryInvested || 0) + (r.income.salaryGrowth || 0), 0);
+check('cash flows: invested salary builds to its final balance', cfInvested,
+  C.opportunityBreakdown(cfOpp, cfSettings).salaryInvested * 1.1 ** 2);
 check('cash flows: year 2 final payout 300', cf[2].income.payout, 300);
-const cfSum = (rows) => rows.reduce((a, r) => a + [...Object.values(r.income), ...Object.values(r.costs)]
-  .reduce((x, y) => x + y, 0), 0);
-check('cash flows: discounted sum = opportunity PV',
-  cfSum(C.yearlyCashFlows(cfOpp, cfSettings, { discounted: true })), C.opportunityPV(cfOpp, cfSettings));
+// Discounted: each year's amounts ÷ (1+d)^t — year 2 growth 100 / 1.21
+check('cash flows: discounted year 2 growth', C.yearlyCashFlows(cfOpp, cfSettings, { discounted: true })[2]
+  .income.salaryGrowth, 100 / 1.21);
 check('cash flows: no start column without start amounts', C.yearlyCashFlows({ ...cfOpp,
   initial: { amount: 0 }, initialPayout: { amount: 200, invest: true, rate: { mode: 'sp500' } } }, cfSettings)[0].year, 1);
 check('cash flows: indefinite → none', C.yearlyCashFlows({ ...cfOpp, yearsMode: 'indefinite' }, cfSettings) === null ? 1 : 0, 1);

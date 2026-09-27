@@ -7,7 +7,8 @@ const MAX_YEARS = 20;
 /** Stack order, bottom to top, with each source's CSS color token. Keys match Calculator.yearlyCashFlows. */
 const INCOME = [
   { key: 'salary', label: 'Salary', color: '--cf-salary' },
-  { key: 'salaryInvested', label: 'Invested salary', color: '--cf-salary-invested' },
+  { key: 'salaryInvested', label: 'Salary invested', color: '--cf-salary-invested' },
+  { key: 'salaryGrowth', label: 'Invested salary growth', color: '--cf-salary-growth' },
   { key: 'yearlyReturn', label: 'Yearly return', color: '--cf-return' },
   { key: 'initial', label: 'Investment value', color: '--cf-investment' },
   { key: 'initialPayout', label: 'Initial payout', color: '--cf-initial-payout' },

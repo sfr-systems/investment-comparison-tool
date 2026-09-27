@@ -183,8 +183,11 @@ export class Calculator {
    * Returns [{ year, income: { key: amount }, costs: { key: amount < 0 } }] for years 0..n,
    * where year 0 is the start (listed only when something happens then). Keys match
    * opportunityBreakdown; `initial` is the investment paid in (a cost at the start) and its
-   * grown value (income at year n). Amounts are as received that year; with `discounted`
-   * each is divided by (1+d)^t, so everything sums to the opportunity's PV.
+   * grown value (income at year n). Invested salary is shown as it builds up rather than as one
+   * balance at year n: `salaryInvested` is the share of that year's pay put in, and
+   * `salaryGrowth` the growth that year on what was put in before (no growth in the year earned),
+   * so over the years they add up to the final balance. Amounts are as received or accrued that
+   * year; with `discounted` each is divided by (1+d)^t.
    */
   static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
     const n = Calculator.resolveYears(opp, settings);
@@ -212,15 +215,17 @@ export class Calculator {
     const ceiling = (s.g > 0 || s.k > 0) && s.cap != null ? Math.max(s.cap, s.S) : Infinity;
     const L = +opp.loan?.amount || 0;
     const A = L ? Calculator.loanPayment(L, rate(opp.loan?.rate), n) : 0;
-    let investedSalary = 0;
+    let balance = 0; // invested salary so far
     for (let t = 1; t <= n; t++) {
       add(t, 'income', 'yearlyReturn', R * Math.pow(1 + gR, t - 1));
       const pay = s.S ? Calculator.salaryPay(t, s, ceiling) : 0;
       add(t, 'income', 'salary', (1 - s.p) * pay);
-      investedSalary += s.p * pay * Math.pow(1 + s.gi, n - t);
+      const growth = balance * s.gi;
+      add(t, 'income', 'salaryGrowth', growth);
+      add(t, 'income', 'salaryInvested', s.p * pay);
+      balance += growth + s.p * pay;
       add(t, 'costs', 'loan', -A);
     }
-    add(n, 'income', 'salaryInvested', investedSalary);
     add(n, 'income', 'payout', +opp.payout || 0);
 
     const hasStart = Object.keys(years[0].income).length || Object.keys(years[0].costs).length;
