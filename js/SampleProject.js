@@ -4,6 +4,7 @@ import { Models } from './Models.js';
 export class SampleProject {
   static create() {
     const project = Models.project('Career Options');
+    project.sample = true; // stays on this device (not synced) until it's edited
     Object.assign(project.settings, { discountRate: 5, sp500Rate: 10, loanRate: 5 });
 
     const indexFund = Models.opportunity('Index fund + part-time job');

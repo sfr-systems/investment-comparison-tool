@@ -74,6 +74,7 @@ export function debounce(fn, ms) {
   debounced.flush = () => {
     if (timer) { clearTimeout(timer); timer = null; fn(); }
   };
+  debounced.pending = () => timer != null;
   return debounced;
 }
 
@@ -180,6 +181,10 @@ const ICON_PATHS = {
   expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
   swap: '<path d="M7 20V4M3 8l4-4 4 4M17 4v16M21 16l-4 4-4-4"/>',
   close: '<path d="M18 6 6 18M6 6l12 12"/>',
+  cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
+  cloudCheck: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/><path d="m9.5 14 2 2 3.5-3.5"/>',
+  cloudOff: '<path d="m2 2 20 20"/><path d="M5.78 5.78A7 7 0 0 0 9 19h8.5a4.5 4.5 0 0 0 1.31-.19"/><path d="M21.53 16.5A4.5 4.5 0 0 0 17.5 10h-1.79A7 7 0 0 0 10 5.07"/>',
+  refresh: '<path d="M21 12a9 9 0 0 1-15.36 6.36L3 16M3 12a9 9 0 0 1 15.36-6.36L21 8"/><path d="M21 3v5h-5M3 21v-5h5"/>',
 };
 
 /** Inline stroke icon (decorative; pair with a text label or aria-label). */

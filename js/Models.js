@@ -85,6 +85,7 @@ export class Models {
     copy.id = Models.id();
     copy.name = name;
     copy.createdAt = copy.updatedAt = Date.now();
+    delete copy.sample; // a copy is the user's own project, synced like any other
     for (const st of copy.strategies) {
       st.id = Models.id();
       for (const sg of st.subGroups) {

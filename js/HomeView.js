@@ -4,9 +4,10 @@ import { SampleProject } from './SampleProject.js';
 
 /** Home page: create, open, and delete projects. */
 export class HomeView {
-  constructor(storage, router) {
+  constructor(storage, router, syncControl) {
     this.storage = storage;
     this.router = router;
+    this.syncControl = syncControl;
   }
 
   render() {
@@ -25,6 +26,8 @@ export class HomeView {
 
     this.list = el('ul', { class: 'project-list' });
     this.count = el('span', { class: 'count' });
+    const syncNote = this.syncControl.homeNote();
+    this.disposeSyncNote = syncNote.dispose;
     this.root = el('div', { class: 'home-page' },
       el('section', { class: 'hero' },
         el('span', { class: 'eyebrow' }, 'Present value analysis'),
@@ -34,9 +37,14 @@ export class HomeView {
       el('div', { class: 'section-head' },
         el('h2', { class: 'eyebrow' }, 'Projects'),
         this.count),
-      this.list);
+      this.list,
+      syncNote.node);
     this.loadList();
     return this.root;
+  }
+
+  destroy() {
+    this.disposeSyncNote?.();
   }
 
   async loadList() {

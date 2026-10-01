@@ -11,6 +11,7 @@ export class ProjectView {
     this.storage = storage;
     this.children = [];
     this.save = debounce(() => {
+      delete this.project.sample; // edited: now synced like any other project
       this.storage.saveProject(this.project).catch(() => this.showSaveError());
     }, 400);
     this.onPageHide = () => this.save.flush();
@@ -218,6 +219,15 @@ export class ProjectView {
 
   showSaveError() {
     this.saveError.hidden = false;
+  }
+
+  /** Save edits still waiting on the debounce (before a sync reads this project). */
+  flushSave() {
+    this.save.flush();
+  }
+
+  hasPendingSave() {
+    return this.save.pending();
   }
 
   destroy() {

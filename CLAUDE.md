@@ -4,8 +4,10 @@ Vanilla JavaScript (ES6 classes + ES modules), HTML, CSS. No frameworks, no npm 
 ## Setup
 - First, save this spec to CLAUDE.md.
 - Structure: index.html, css/styles.css, and ALL JavaScript in js/ (one class per file where sensible).
+  The one exception is the cloud-sync Vercel Function, which Vercel requires in api/ (api/sync.mjs).
 - Serve with `python3 -m http.server 8000` (ES modules need a server), then open http://localhost:8000.
 - Persist data in localStorage via a single Storage class. No user accounts yet, but keep persistence swappable for a backend/auth later.
+- Projects also sync across devices through a cloud copy (see "Cloud sync" below); localStorage stays the working copy.
 
 ## Data model
 Project → Strategy[] → SubGroup[] → Opportunity[]
@@ -73,9 +75,14 @@ validate inputs (non-negative amounts, n ≥ 1).
 
 ## Implementation notes
 - Run: `python3 -m http.server 8000` → http://localhost:8000
-- Calculator tests: `node js/tests/calculator.test.mjs`; display rounding tests: `node js/tests/format.test.mjs`; risk tests: `node js/tests/risk.test.mjs`
+- Calculator tests: `node js/tests/calculator.test.mjs`; display rounding tests: `node js/tests/format.test.mjs`; risk tests: `node js/tests/risk.test.mjs`; sync tests: `node js/tests/sync.test.mjs`
+  (needs Node ≥ 22 to load js/*.js as ES modules without a package.json; on older Node, run from a copy that has `{"type":"module"}`)
 - Rates are stored as `{ mode: 'sp500' | 'loan' | 'discount' | 'custom' | 'none', custom: <percent> }` and resolved against project settings at calc time, so standard options stay linked. "Discount rate" is offered only on growth-rate selectors (not the loan interest rate).
-- Persistence goes through `Storage`, which wraps an adapter (`LocalStorageAdapter`). Swap the adapter for a backend later.
+- Persistence goes through `Storage`, which wraps an adapter (`LocalStorageAdapter`). User edits go through `saveProject` (new `rev` + `updatedAt`); `storeProject`/`removeProject` write as-is for sync.
+- Cloud sync (hosted on Vercel, auto-deployed from `main`): `api/sync.mjs` is a dependency-free Vercel Function storing one Upstash Redis hash (`ict:records`, field = project id) via the REST API. Needs env vars `SYNC_PASSPHRASE` plus `KV_REST_API_URL`/`KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_*`), which connecting an Upstash Redis store in Vercel adds. Each device enters the passphrase once; it stores only `SHA-256("ict-sync:" + passphrase)` (pref `syncKey`) and sends it as a Bearer token. 20 wrong tries per IP per 15 min → 429. `GET ?status` tells the app whether sync is set up (plain static servers like `python3 -m http.server` have no API, so the sync UI hides).
+  - `ProjectSync` runs syncs (on load, focus/visibility, `online`, every 2 min while visible, ~1.5 s after edits, keepalive upload when the page is hidden); `SyncMerge.plan` decides per project. Versions are `rev`s (unique per save); `Storage` key `sync` keeps `{ base, deleted? }` per id. Uploads are accepted only if the cloud still has `base`, so a device can't overwrite changes it hasn't seen. Edited on two devices → the cloud version wins the original and this device's becomes "Name (conflicted copy)"; an edit beats a deletion. Deletions sync as markers.
+  - Untouched sample projects (`sample: true`) never sync; the first edit (ProjectView save) or a duplicate clears the flag.
+  - When a pull changes the open project, `App.onRemoteChange` re-mounts it (keeping scroll) with a toast; `isEditing` skips pulling a project with unsaved edits. UI: `SyncControl` (app-bar status button, dialog, project-list note, toasts).
 - Styling: tokens in `css/styles.css` `:root` (light + dark). Fonts Inter + Source Serif 4 load from Google Fonts and fall back to system fonts offline. Icons are inline SVGs via `icon()` in `js/format.js`.
 - Theme: `<html data-theme="light|dark">`. `js/theme-init.js` (classic script in `<head>`) sets it before paint; `ThemeToggle` switches it and saves the choice via `Storage.setPreference("theme")`. With no saved choice it follows the OS setting.
 - New visitors get a "Career Options" sample (`js/SampleProject.js`), seeded once on first load (pref `sampleSeeded`); the empty project list offers "Load sample project".

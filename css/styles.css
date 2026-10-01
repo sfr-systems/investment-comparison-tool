@@ -36,6 +36,9 @@
   --risk-neutral: #b26f12;
   --risk-high: #c2413b;
   --caution-deep: #8f6a12;
+  /* Cloud sync status */
+  --sync-ok: #2f7d5b;
+  --sync-warn: #a4590f;
   /* Cash-flow chart series (validated categorical order; growth series reuse their source's color, striped) */
   --cf-salary: #2a78d6;
   --cf-salary-invested: #eda100;
@@ -83,6 +86,8 @@
   --cf-initial-payout: #9085e9;
   --cf-final-payout: #008300;
   --cf-loan: #d55181;
+  --sync-ok: #6cc59b;
+  --sync-warn: #e7a35a;
   color-scheme: dark;
 }
 
@@ -201,6 +206,34 @@ h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
 .theme-toggle[aria-checked="false"] .theme-icon-sun,
 .theme-toggle[aria-checked="true"] .theme-icon-moon { color: var(--text); }
 
+.app-bar-actions { display: flex; align-items: center; gap: 10px; }
+
+/* Cloud sync status button */
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 11px 0 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.15s, background-color 0.15s;
+}
+.sync-btn[hidden] { display: none; }
+.sync-btn:hover { border-color: var(--border-strong); background: var(--surface-2); }
+.sync-btn .icon { width: 15px; height: 15px; color: var(--muted); }
+.sync-btn[data-state="synced"] .icon { color: var(--sync-ok); }
+.sync-btn:is([data-state="unauthorized"], [data-state="throttled"], [data-state="error"]) .icon { color: var(--sync-warn); }
+.sync-btn[data-state="syncing"] .icon,
+.sync-status[data-state="syncing"] .icon { animation: sync-spin 1s linear infinite; }
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+
 @media (prefers-reduced-motion: no-preference) {
   html.theme-transition,
   html.theme-transition *,
@@ -216,6 +249,7 @@ h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.015em; }
 input, select, button { font: inherit; color: inherit; }
 
 input[type="text"],
+input[type="password"],
 input.num-input,
 select {
   width: 100%;
@@ -1438,6 +1472,107 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .rail-list li:last-child .rail-track { height: 12px; }
 
 /* ==========================================================================
+   Cloud sync: project-list note, dialog, toasts
+   ========================================================================== */
+.sync-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 4px 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.sync-note[hidden] { display: none; }
+.sync-note .icon { width: 15px; height: 15px; }
+.sync-note[data-state="synced"] .icon,
+.sync-note[data-state="syncing"] .icon { color: var(--sync-ok); }
+.sync-note:is([data-state="unauthorized"], [data-state="throttled"], [data-state="error"]) .icon { color: var(--sync-warn); }
+
+.link-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 35%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.link-btn:hover { text-decoration-color: currentColor; }
+
+.sync-dialog {
+  width: min(460px, calc(100vw - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-lg);
+}
+.sync-dialog::backdrop { background: rgba(8, 10, 14, 0.55); }
+.sync-dialog-inner { padding: 18px 22px 22px; }
+.sync-dialog-inner > p { margin: 0 0 14px; color: var(--text-2); }
+.sync-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.sync-dialog-head h2 { font-family: var(--font-serif); font-size: 20px; font-weight: 600; }
+.sync-dialog-head .icon-btn { margin-right: -8px; }
+.sync-form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.sync-form-row { display: flex; gap: 8px; }
+.sync-form-row input { flex: 1; height: 38px; }
+.sync-form-row .btn { height: 38px; }
+.sync-error { margin: 2px 0 0; color: var(--negative); font-size: 13px; font-weight: 500; }
+.sync-error[hidden] { display: none; }
+.sync-dialog-inner > p.sync-fine { margin: 0; font-size: 12.5px; color: var(--muted); }
+.sync-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.sync-status .icon { width: 18px; height: 18px; margin-top: 1px; color: var(--muted); }
+.sync-status[data-state="synced"] .icon { color: var(--sync-ok); }
+.sync-status:is([data-state="throttled"], [data-state="error"]) .icon { color: var(--sync-warn); }
+.sync-status strong { display: block; font-weight: 600; }
+.sync-status span { display: block; font-size: 13px; color: var(--muted); }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.sync-actions .btn:disabled { opacity: 0.6; cursor: default; }
+.sync-steps { margin: 0; padding-left: 20px; color: var(--text-2); }
+.sync-steps li + li { margin-top: 6px; }
+
+.toast-region {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.toast {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  background: var(--text);
+  color: var(--bg);
+  box-shadow: var(--shadow-lg);
+  font-size: 13.5px;
+  font-weight: 500;
+  animation: toast-in 0.2s ease-out;
+  transition: opacity 0.3s, transform 0.3s;
+}
+.toast.leaving { opacity: 0; transform: translateY(6px); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
 @media (max-width: 900px) {
@@ -1448,6 +1583,9 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 
 @media (max-width: 680px) {
   .app-bar-inner { padding: 0 16px; }
+  .sync-btn { width: 30px; padding: 0; justify-content: center; }
+  .sync-btn .sync-label { display: none; }
+  .sync-form-row { flex-direction: column; }
   .container { padding: 24px 16px 64px; }
 
   .hero h1 { font-size: 32px; }
@@ -1493,4 +1631,5 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; }
+  .sync-btn .icon, .sync-status .icon, .toast { animation: none !important; }
 }
