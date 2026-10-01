@@ -33,9 +33,12 @@ export class Models {
     return { enabled: false, state: '' };
   }
 
-  /** Whether income source cards show their cash-flow chart and yearly table. */
+  /**
+   * Whether income source cards show their cash-flow chart and yearly table, and whether the
+   * expanded popup shows both together (IncomeSourcePopup).
+   */
   static display() {
-    return { charts: true, tables: true };
+    return { charts: true, tables: true, popupBoth: false };
   }
 
   static strategy(title = 'New Strategy') {

@@ -85,6 +85,30 @@ export function debounce(fn, ms) {
   return debounced;
 }
 
+/**
+ * Large modal popup for an income source's expanded chart or table: a header with `kicker` (a
+ * small label line) over `title`, optional `controls` and a close button, then `body`. Closes
+ * with ×, Esc or a click on the backdrop; `onClose` runs once it's gone.
+ */
+export function openPopup({ className = '', label, kicker, title, controls = null, body, onClose }) {
+  const dialog = el('dialog', { class: `cf-dialog ${className}`.trim(), 'aria-label': label },
+    el('div', { class: 'cf-dialog-inner' },
+      el('header', { class: 'cf-dialog-head' },
+        el('div', { class: 'cf-dialog-title' }, kicker, el('h2', {}, title)),
+        controls,
+        el('button', {
+          type: 'button', class: 'icon-btn', title: 'Close', 'aria-label': 'Close',
+          onclick: () => dialog.close(),
+        }, icon('close'))),
+      body));
+  // A click on the backdrop lands on the dialog itself (the inner panel covers the rest).
+  dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', () => { dialog.remove(); onClose?.(); });
+  document.body.append(dialog);
+  dialog.showModal();
+  return dialog;
+}
+
 export function confirmDelete(kind, name) {
   return window.confirm(`Delete ${kind} "${name || 'Untitled'}"? This cannot be undone.`);
 }

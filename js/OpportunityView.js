@@ -5,6 +5,7 @@ import { Models } from './Models.js';
 import { Risk } from './Risk.js';
 import { CashFlowChart } from './CashFlowChart.js';
 import { YearlyTable } from './YearlyTable.js';
+import { IncomeSourcePopup } from './IncomeSourcePopup.js';
 
 /** Wording for the two yearly-amount sections (see streamGroup). */
 const STREAMS = {
@@ -102,8 +103,8 @@ export class OpportunityView {
         this.finalPayoutField = this.field('Final payout (one-time)',
           this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)')),
         this.streamGroup(opp.salary, STREAMS.salary)),
-      (this.chart = new CashFlowChart(opp, ctx)).render(),
-      (this.table = new YearlyTable(opp, ctx)).render(),
+      (this.chart = new CashFlowChart(opp, ctx, { onExpand: () => this.expand('chart') })).render(),
+      (this.table = new YearlyTable(opp, ctx, { onExpand: () => this.expand('table') })).render(),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
@@ -111,6 +112,11 @@ export class OpportunityView {
 
     this.update();
     return this.root;
+  }
+
+  /** Open the large popup on the chart or the table (it can show both); closing it re-syncs the card. */
+  expand(start) {
+    new IncomeSourcePopup(this.opp, this.ctx).open(start, { onClose: () => this.update() });
   }
 
   field(label, control) {

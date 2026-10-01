@@ -1289,7 +1289,7 @@ input:disabled { cursor: not-allowed; }
   .opportunity:not(:hover, :focus-within) .cf-grid { opacity: 0.5; }
   /* Clip only sideways, so the top and bottom labels (centered on their gridlines) stay whole. */
   .cf-y-axis { clip-path: inset(-12px 0); transition: width 0.2s ease, opacity 0.2s ease; }
-  .cf-actions, .cf-x-axis, .cf-x-title, .cf-legend { transition: opacity 0.2s ease, visibility 0.2s; }
+  .cf-actions, .cf-x-axis, .cf-x-title, .cf-legend, .yt-expand { transition: opacity 0.2s ease, visibility 0.2s; }
   /* The plot takes 80% of the y-axis column (40px + 8px gap); the other 20% is split either
      side so the plot stays centered in the card. */
   .opportunity:not(:hover, :focus-within) .cf-frame {
@@ -1298,7 +1298,7 @@ input:disabled { cursor: not-allowed; }
     opacity: 0.75; /* the plot recedes at rest; the title stays at full strength */
   }
   .opportunity:not(:hover, :focus-within) .cf-y-axis { width: 0; opacity: 0; }
-  .opportunity:not(:hover, :focus-within) :is(.cf-actions, .cf-x-axis, .cf-x-title, .cf-legend) {
+  .opportunity:not(:hover, :focus-within) :is(.cf-actions, .cf-x-axis, .cf-x-title, .cf-legend, .yt-expand) {
     opacity: 0;
     visibility: hidden;
   }
@@ -1367,8 +1367,11 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .yearly-table { padding: 14px 16px 16px; }
 .cash-flow-chart:not([hidden]) + .yearly-table { padding-top: 0; }
 .yearly-table[hidden] { display: none; }
-.yt-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.yt-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 30px; margin-bottom: 6px; }
+.yt-actions { display: flex; align-items: center; gap: 6px; }
 .yt-basis { font-size: 11.5px; color: var(--muted); }
+.yt-expand { width: 30px; height: 30px; }
+.yt-expand[hidden] { display: none; }
 .yt-scroll {
   overflow-x: auto;
   border: 1px solid var(--border);
@@ -1435,6 +1438,37 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .yt-more .icon { width: 14px; height: 14px; }
 .yt-foot { margin: 6px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--muted); }
 .yt-foot:empty { display: none; }
+
+/* Expanded popup (js/IncomeSourcePopup.js): the chart, the yearly table, or both stacked.
+   Table alone: the popup is sized to the table, which scrolls inside it with its header and
+   Total rows pinned. */
+.popup-kicker, .popup-controls { display: flex; align-items: center; gap: 6px; }
+.popup-controls .popup-both { margin-left: 6px; white-space: nowrap; }
+.popup-controls .popup-both[hidden], .cf-controls[hidden], .yt-kicker[hidden] { display: none; }
+.popup-body { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 22px; }
+.cf-dialog .cash-flow-chart[hidden], .popup-table[hidden], .popup-subhead[hidden] { display: none; }
+.popup-table { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.popup-subhead { margin-bottom: 8px; }
+.cf-dialog.popup-both .cash-flow-chart { flex: 1 1 0; min-height: 240px; }
+.cf-dialog.popup-both .popup-table { flex: 0 1 auto; max-height: 46%; }
+.cf-dialog.popup-table-only {
+  width: fit-content;
+  min-width: min(560px, calc(100vw - 48px));
+  max-width: calc(100vw - 48px);
+  height: fit-content;
+  max-height: calc(100vh - 48px);
+}
+.yt-kicker { display: flex; align-items: baseline; gap: 10px; }
+.cf-dialog .yearly-table { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; }
+.cf-dialog .yt-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cf-dialog .yt-scroll { flex: 0 1 auto; min-height: 0; overflow: auto; }
+.cf-dialog .yt { font-size: 13.5px; }
+.cf-dialog .yt th, .cf-dialog .yt td { padding: 7px 14px; }
+.cf-dialog .yt thead th { font-size: 11px; }
+.cf-dialog .yt thead { position: sticky; top: 0; z-index: 2; }
+.cf-dialog .yt tr.yt-total > * { position: sticky; bottom: 0; z-index: 1; }
+.cf-dialog .yt tr.yt-total > .yt-year { z-index: 2; }
+.cf-dialog .yt-foot { max-width: 70ch; margin-top: 10px; font-size: 12.5px; }
 
 /* Sub group ledger */
 .subgroup-totals {
@@ -1749,6 +1783,14 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 
 @media (max-width: 680px) {
   .app-bar-inner { padding: 0 16px; }
+  /* Popup header: title and close on the first row, the view controls on their own row below */
+  .cf-dialog { width: calc(100vw - 24px); max-height: calc(100vh - 24px); }
+  .cf-dialog:not(.popup-table-only) { height: calc(100vh - 24px); }
+  .cf-dialog-inner { padding: 14px 14px 16px; }
+  .cf-dialog-head { flex-wrap: wrap; row-gap: 10px; }
+  .cf-dialog-head > .icon-btn { order: 1; }
+  .cf-dialog-head > .popup-controls { order: 2; flex-basis: 100%; flex-wrap: wrap; }
+  .popup-controls .popup-both { margin-left: auto; }
   .sync-btn { width: 30px; padding: 0; justify-content: center; }
   .sync-btn .sync-label { display: none; }
   .sync-form-row { flex-direction: column; }

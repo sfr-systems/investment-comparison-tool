@@ -36,12 +36,19 @@ const shown = (v) => Math.abs(v) >= 0.5; // at least a dollar once rounded
 /**
  * Table under an income source's chart spelling out each year's income, expenses, taxes and net
  * cash (from Calculator.yearlyLedger). Lists the first two years until expanded (saved as
- * `opp.tableExpanded`); hidden on indefinite timespans.
+ * `opp.tableExpanded`); hidden on indefinite timespans. The expand button opens a large copy in a
+ * popup (IncomeSourcePopup) that always lists every year.
  */
 export class YearlyTable {
-  constructor(opp, ctx) {
+  /**
+   * expanded: the large copy shown in the popup, which has no header of its own (the popup's shows
+   * its basis). onExpand: opens that popup (the card's expand button).
+   */
+  constructor(opp, ctx, { expanded = false, onExpand = null } = {}) {
     this.opp = opp;
     this.ctx = ctx;
+    this.expanded = expanded;
+    this.onExpand = onExpand;
   }
 
   render() {
@@ -56,9 +63,17 @@ export class YearlyTable {
       },
     });
     this.footnote = el('p', { class: 'yt-foot' });
-    this.root = el('section', { class: 'yearly-table', 'aria-label': 'Yearly income, expenses and taxes' },
-      el('div', { class: 'yt-head' }, el('span', { class: 'eyebrow' }, 'Yearly breakdown'), this.basis),
-      this.body, this.moreBtn, this.footnote);
+    this.root = el('section', { class: 'yearly-table', 'aria-label': 'Yearly income, expenses and taxes' });
+    if (!this.expanded) {
+      this.expandBtn = el('button', {
+        type: 'button', class: 'icon-btn yt-expand', title: 'Expand table', 'aria-label': 'Expand table',
+        onclick: () => this.onExpand?.(),
+      }, icon('expand'));
+      this.root.append(el('div', { class: 'yt-head' },
+        el('span', { class: 'eyebrow' }, 'Yearly breakdown'),
+        el('div', { class: 'yt-actions' }, this.basis, this.expandBtn)));
+    }
+    this.root.append(this.body, this.moreBtn, this.footnote);
     this.update();
     return this.root;
   }
@@ -78,16 +93,18 @@ export class YearlyTable {
     this.basis.textContent = taxesOn ? 'After taxes' : 'Before taxes';
     this.footnote.replaceChildren(...this.notes(settings, ledger, groups));
 
-    if (!groups.some((g) => g.key !== 'taxes')) {
+    const empty = !groups.some((g) => g.key !== 'taxes');
+    if (this.expandBtn) this.expandBtn.hidden = empty;
+    if (empty) {
       this.body.replaceChildren(el('p', { class: 'cf-note' }, 'Enter amounts above to see each year’s income, expenses and taxes.'));
       this.moreBtn.hidden = true;
       return;
     }
 
     const lastYear = ledger[ledger.length - 1].year;
-    const collapsible = ledger.some((row) => row.year > COLLAPSED_YEARS);
-    const expanded = collapsible && !!this.opp.tableExpanded;
-    const rows = expanded ? ledger : ledger.filter((row) => row.year <= COLLAPSED_YEARS);
+    const collapsible = !this.expanded && ledger.some((row) => row.year > COLLAPSED_YEARS);
+    const showAll = this.expanded || (collapsible && !!this.opp.tableExpanded);
+    const rows = showAll ? ledger : ledger.filter((row) => row.year <= COLLAPSED_YEARS);
 
     const cell = (v, className = '') => el('td', {
       class: [className, !shown(v) && 'yt-zero', v <= -0.5 && 'negative'].filter(Boolean).join(' '),
@@ -107,17 +124,18 @@ export class YearlyTable {
         el('th', { scope: 'col', title: c.title, class: i === 0 ? 'yt-first' : '' }, c.label)))));
     const body = el('tbody', {},
       rows.map((row) => line(row.year === 0 ? 'Start' : String(row.year), row, row.net)),
-      expanded ? line('Total', YearlyTable.totals(ledger), ledger.reduce((a, r) => a + r.net, 0), 'yt-total') : null);
+      showAll && ledger.length > 1
+        ? line('Total', YearlyTable.totals(ledger), ledger.reduce((a, r) => a + r.net, 0), 'yt-total') : null);
 
     this.body.replaceChildren(el('div', {
       class: 'yt-scroll', tabindex: '0', role: 'region', 'aria-label': 'Yearly breakdown table (scrolls sideways)',
     }, el('table', { class: 'yt' }, head, body)));
 
     this.moreBtn.hidden = !collapsible;
-    this.moreBtn.setAttribute('aria-expanded', String(expanded));
+    this.moreBtn.setAttribute('aria-expanded', String(showAll));
     this.moreBtn.replaceChildren(
-      el('span', {}, expanded ? `Show first ${COLLAPSED_YEARS} years` : `Show all ${lastYear} years`),
-      icon(expanded ? 'chevronUp' : 'chevron'));
+      el('span', {}, showAll ? `Show first ${COLLAPSED_YEARS} years` : `Show all ${lastYear} years`),
+      icon(showAll ? 'chevronUp' : 'chevron'));
   }
 
   /** Per-column sums across every year, shaped like a ledger row. */

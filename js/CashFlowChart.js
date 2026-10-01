@@ -51,12 +51,21 @@ const signed = (v) => formatPV(v).replace('-', '−');
  * Hovering (or arrow keys on the focused plot) shows each source's amount for that year.
  */
 export class CashFlowChart {
-  /** expanded: the large copy shown in the popup, which has no header of its own (see openExpanded). */
-  constructor(opp, ctx, { expanded = false } = {}) {
+  /**
+   * expanded: the large copy shown in the popup (IncomeSourcePopup), which puts this chart's title
+   * and controls in its own header. onExpand: opens that popup (the card's expand button).
+   */
+  constructor(opp, ctx, { expanded = false, onExpand = null } = {}) {
     this.opp = opp;
     this.ctx = ctx;
     this.expanded = expanded;
+    this.onExpand = onExpand;
     this.active = -1;
+  }
+
+  /** Whether the chart is drawn for this timespan (otherwise it shows a note). */
+  static available(opp, settings) {
+    return Calculator.resolveYears(opp, settings) <= MAX_YEARS;
   }
 
   render() {
@@ -70,7 +79,7 @@ export class CashFlowChart {
         el('div', { class: 'cf-actions' }, this.controls,
           el('button', {
             type: 'button', class: 'icon-btn cf-expand', title: 'Expand chart', 'aria-label': 'Expand chart',
-            onclick: () => this.openExpanded(),
+            onclick: () => this.onExpand?.(),
           }, icon('expand'))));
       this.root.append(this.head);
     }
@@ -78,29 +87,6 @@ export class CashFlowChart {
     if (!this.expanded) new ResizeObserver(() => this.measureBelow()).observe(this.body);
     this.update();
     return this.root;
-  }
-
-  /** Show a large copy of the chart in a modal popup; closing it syncs this chart (e.g. its value mode). */
-  openExpanded() {
-    const big = new CashFlowChart(this.opp, this.ctx, { expanded: true });
-    const chart = big.render();
-    const dialog = el('dialog', { class: 'cf-dialog', 'aria-label': 'Yearly cash flow' },
-      el('div', { class: 'cf-dialog-inner' },
-        el('header', { class: 'cf-dialog-head' },
-          el('div', { class: 'cf-dialog-title' },
-            big.titleEl,
-            el('h2', {}, this.opp.title || 'Untitled income source')),
-          big.controls,
-          el('button', {
-            type: 'button', class: 'icon-btn', title: 'Close', 'aria-label': 'Close',
-            onclick: () => dialog.close(),
-          }, icon('close'))),
-        chart));
-    // A click on the backdrop lands on the dialog itself (the inner panel covers the rest).
-    dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
-    dialog.addEventListener('close', () => { dialog.remove(); this.update(); });
-    document.body.append(dialog);
-    dialog.showModal();
   }
 
   /** [Received | PV]: amounts as paid that year, or discounted to today. */
