@@ -2,7 +2,9 @@ import { el, numberInput, debounce, confirmDelete, icon } from './format.js';
 import { Models } from './Models.js';
 import { StrategyView } from './StrategyView.js';
 import { StrategyRail } from './StrategyRail.js';
+import { ProjectOptions } from './ProjectOptions.js';
 import { REFERENCE_RATES as REF } from './referenceRates.js';
+import { TAX_SOURCES, TAX_YEAR } from './taxData.js';
 
 /** Project page: settings bar + stacked strategies. Owns saving and live recalculation. */
 export class ProjectView {
@@ -88,12 +90,12 @@ export class ProjectView {
           suffix: 'yrs',
           rule: { min: 1, integer: true, message: 'Timespan must be a whole number of years ≥ 1' },
         }),
+        new ProjectOptions(project, ctx).render(),
         this.expandableNote('settings-note',
           `Reference figures as of ${REF.asOf}, for context only; they don't change your inputs. Sources: `,
-          ...REF.sources.flatMap((src, i) => [
-            i ? ', ' : '',
-            el('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.label),
-          ]),
+          ...this.links(REF.sources),
+          `. Tax tables (${TAX_YEAR}): `,
+          ...this.links(TAX_SOURCES),
           '.')),
       this.saveError,
       this.datalist,
@@ -111,6 +113,14 @@ export class ProjectView {
     this.watchSettingsBar();
     this.renderStrategies();
     return this.root;
+  }
+
+  /** Comma-separated links that open in a new tab. */
+  links(sources) {
+    return sources.flatMap((src, i) => [
+      i ? ', ' : '',
+      el('a', { href: src.url, target: '_blank', rel: 'noopener noreferrer' }, src.label),
+    ]);
   }
 
   /**

@@ -20,9 +20,22 @@ export class Models {
       name: (name || '').trim() || 'Untitled Project',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      settings: { discountRate: 7, sp500Rate: 12, loanRate: 5, defaultYears: Models.DEFAULT_YEARS },
+      settings: {
+        discountRate: 7, sp500Rate: 12, loanRate: 5, defaultYears: Models.DEFAULT_YEARS, taxes: Models.taxes(),
+      },
+      display: Models.display(),
       strategies: [],
     };
+  }
+
+  /** Federal and state income taxes in every calculation, for a resident of `state` (postal code). */
+  static taxes() {
+    return { enabled: false, state: '' };
+  }
+
+  /** Whether income source cards show their cash-flow chart and yearly table. */
+  static display() {
+    return { charts: true, tables: true };
   }
 
   static strategy(title = 'New Strategy') {
@@ -113,6 +126,8 @@ export class Models {
   /** Fill project-level fields added after a project was saved. */
   static upgradeProject(project) {
     project.settings.defaultYears ??= Models.DEFAULT_YEARS;
+    project.settings.taxes ??= Models.taxes();
+    project.display ??= Models.display();
     for (const st of project.strategies) delete st.beacon; // beacons are now positional
     for (const st of project.strategies)
       for (const sg of st.subGroups)

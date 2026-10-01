@@ -1,0 +1,151 @@
+import { el, formatDollars, formatUSD, icon } from './format.js';
+import { Calculator } from './Calculator.js';
+import { STATES, TAX_YEAR } from './taxData.js';
+
+/** Years listed while the table is collapsed (plus the start, when there is one). */
+const COLLAPSED_YEARS = 2;
+
+/** Column groups, in order; keys match Calculator.yearlyLedger. Income and expense columns show only when used. */
+const GROUPS = [
+  {
+    key: 'income', label: 'Income', columns: [
+      { key: 'salary', label: 'Salary', title: 'Yearly salary, including any part invested' },
+      { key: 'yearlyReturn', label: 'Return', title: 'Yearly return, including any part invested' },
+      { key: 'initialPayout', label: 'Initial payout', title: 'Initial payout (one-time), received at the start' },
+      { key: 'payout', label: 'Final payout', title: 'Final payout (one-time), received at the end' },
+      { key: 'cashedOut', label: 'Cashed out', title: 'Investments cashed out at the end of the timespan' },
+    ],
+  },
+  {
+    key: 'expenses', label: 'Expenses', columns: [
+      { key: 'invested', label: 'Invested', title: 'Put into investments: the initial investment and any invested payout, salary or returns' },
+      { key: 'loan', label: 'Loan', title: 'Loan repayment' },
+    ],
+  },
+  {
+    key: 'taxes', label: 'Taxes', columns: [
+      { key: 'federal', label: 'Federal', title: 'Federal income tax' },
+      { key: 'payroll', label: 'FICA', title: 'Social Security and Medicare' },
+      { key: 'state', label: 'State', title: 'State income tax' },
+    ],
+  },
+];
+
+const shown = (v) => Math.abs(v) >= 0.5; // at least a dollar once rounded
+
+/**
+ * Table under an income source's chart spelling out each year's income, expenses, taxes and net
+ * cash (from Calculator.yearlyLedger). Lists the first two years until expanded (saved as
+ * `opp.tableExpanded`); hidden on indefinite timespans.
+ */
+export class YearlyTable {
+  constructor(opp, ctx) {
+    this.opp = opp;
+    this.ctx = ctx;
+  }
+
+  render() {
+    this.basis = el('span', { class: 'yt-basis' });
+    this.body = el('div', { class: 'yt-body' });
+    this.moreBtn = el('button', {
+      type: 'button', class: 'yt-more',
+      onclick: () => {
+        this.opp.tableExpanded = !this.opp.tableExpanded;
+        this.update();
+        this.ctx.changed({ light: true });
+      },
+    });
+    this.footnote = el('p', { class: 'yt-foot' });
+    this.root = el('section', { class: 'yearly-table', 'aria-label': 'Yearly income, expenses and taxes' },
+      el('div', { class: 'yt-head' }, el('span', { class: 'eyebrow' }, 'Yearly breakdown'), this.basis),
+      this.body, this.moreBtn, this.footnote);
+    this.update();
+    return this.root;
+  }
+
+  update() {
+    const settings = this.ctx.project.settings;
+    const ledger = Calculator.yearlyLedger(this.opp, settings);
+    this.root.hidden = !ledger;
+    if (!ledger) return;
+
+    const taxesOn = Calculator.taxesOn(settings);
+    const groups = GROUPS.map((g) => ({
+      ...g,
+      columns: g.key === 'taxes' ? (taxesOn ? g.columns : [])
+        : g.columns.filter((c) => ledger.some((row) => shown(row[g.key][c.key]))),
+    })).filter((g) => g.columns.length);
+    this.basis.textContent = taxesOn ? 'After taxes' : 'Before taxes';
+    this.footnote.replaceChildren(...this.notes(settings, ledger, groups));
+
+    if (!groups.some((g) => g.key !== 'taxes')) {
+      this.body.replaceChildren(el('p', { class: 'cf-note' }, 'Enter amounts above to see each year’s income, expenses and taxes.'));
+      this.moreBtn.hidden = true;
+      return;
+    }
+
+    const lastYear = ledger[ledger.length - 1].year;
+    const collapsible = ledger.some((row) => row.year > COLLAPSED_YEARS);
+    const expanded = collapsible && !!this.opp.tableExpanded;
+    const rows = expanded ? ledger : ledger.filter((row) => row.year <= COLLAPSED_YEARS);
+
+    const cell = (v, className = '') => el('td', {
+      class: [className, !shown(v) && 'yt-zero', v <= -0.5 && 'negative'].filter(Boolean).join(' '),
+      title: shown(v) ? `Exact: ${formatUSD(v)}` : '',
+    }, shown(v) ? formatDollars(v) : '–');
+    const line = (label, values, net, className = '') => el('tr', { class: className },
+      el('th', { scope: 'row', class: 'yt-year' }, label),
+      groups.flatMap((g) => g.columns.map((c, i) => cell(values[g.key][c.key], i === 0 ? 'yt-first' : ''))),
+      cell(net, 'yt-net'));
+
+    const head = el('thead', {},
+      el('tr', {},
+        el('th', { scope: 'col', rowSpan: 2, class: 'yt-year' }, 'Year'),
+        groups.map((g) => el('th', { scope: 'colgroup', colSpan: g.columns.length, class: 'yt-group yt-first' }, g.label)),
+        el('th', { scope: 'col', rowSpan: 2, class: 'yt-net', title: 'Income − expenses − taxes' }, 'Net')),
+      el('tr', {}, groups.flatMap((g) => g.columns.map((c, i) =>
+        el('th', { scope: 'col', title: c.title, class: i === 0 ? 'yt-first' : '' }, c.label)))));
+    const body = el('tbody', {},
+      rows.map((row) => line(row.year === 0 ? 'Start' : String(row.year), row, row.net)),
+      expanded ? line('Total', YearlyTable.totals(ledger), ledger.reduce((a, r) => a + r.net, 0), 'yt-total') : null);
+
+    this.body.replaceChildren(el('div', {
+      class: 'yt-scroll', tabindex: '0', role: 'region', 'aria-label': 'Yearly breakdown table (scrolls sideways)',
+    }, el('table', { class: 'yt' }, head, body)));
+
+    this.moreBtn.hidden = !collapsible;
+    this.moreBtn.setAttribute('aria-expanded', String(expanded));
+    this.moreBtn.replaceChildren(
+      el('span', {}, expanded ? `Show first ${COLLAPSED_YEARS} years` : `Show all ${lastYear} years`),
+      icon(expanded ? 'chevronUp' : 'chevron'));
+  }
+
+  /** Per-column sums across every year, shaped like a ledger row. */
+  static totals(ledger) {
+    const sum = { income: {}, expenses: {}, taxes: {} };
+    for (const row of ledger) {
+      for (const side of Object.keys(sum)) {
+        for (const [key, v] of Object.entries(row[side])) sum[side][key] = (sum[side][key] || 0) + v;
+      }
+    }
+    return sum;
+  }
+
+  /** What the figures assume: whether taxes are in, and when investments are cashed out. */
+  notes(settings, ledger, groups) {
+    const parts = [];
+    if (!Calculator.taxesOn(settings)) {
+      parts.push('Before taxes: turn on “Include taxes” under Assumptions to deduct them.');
+    } else {
+      const state = STATES[settings.taxes.state];
+      parts.push(state
+        ? `${TAX_YEAR} federal and ${state.name} taxes for a single filer, as if this were the only income.`
+        : `${TAX_YEAR} federal taxes for a single filer. Choose a state under Assumptions to add state tax.`);
+    }
+    if (groups.some((g) => g.columns.some((c) => c.key === 'cashedOut'))) {
+      const n = ledger[ledger.length - 1].year;
+      parts.push(` Investments are cashed out in year ${n}${Calculator.taxesOn(settings) ? ', and their gains taxed then' : ''}.`);
+    }
+    return parts;
+  }
+}

@@ -9,6 +9,13 @@ export function formatUSD(value) {
 
 const usdWhole = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 
+/** Whole dollars with a true minus sign, e.g. "−$1,235". */
+export function formatDollars(value) {
+  if (!Number.isFinite(value)) return formatUSD(value);
+  const v = Math.round(value);
+  return (v < 0 ? '−' : '') + usdWhole.format(Math.abs(v));
+}
+
 /**
  * Display rounding for present values: round to the largest power of ten that is no more than
  * 0.1% of the value (e.g. $187,086.31 → $187,100). Whole dollars once that step reaches $1;

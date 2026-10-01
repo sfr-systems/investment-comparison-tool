@@ -21,9 +21,15 @@ const INCOME = [
   { key: 'initialPayoutGrowth', label: 'Initial payout growth', color: '--cf-initial-payout', striped: true },
   { key: 'initial', label: 'Investment value', color: '--cf-investment' },
 ];
-/** Deductions, drawn as positive amounts in their own bar. Only loan repayments are charted. */
+/**
+ * Deductions, drawn as positive amounts in their own bar, bottom to top: loan repayments, then (when
+ * the project includes them) taxes in three steps of one slate hue. The initial investment isn't charted.
+ */
 const COSTS = [
   { key: 'loan', label: 'Loan repayment', color: '--cf-loan' },
+  { key: 'federalTax', label: 'Federal income tax', color: '--cf-federal-tax' },
+  { key: 'payrollTax', label: 'Social Security & Medicare', color: '--cf-payroll-tax' },
+  { key: 'stateTax', label: 'State tax', color: '--cf-state-tax' },
 ];
 
 /** A series' fill: its solid color, or diagonal stripes of the color and the color at 75% opacity. */
@@ -39,8 +45,9 @@ const signed = (v) => formatPV(v).replace('-', '−');
 
 /**
  * Stacked bar chart of an opportunity's cash flows, one column per year: income sources stacked
- * and, when there's a loan, a red bar just to the right with that year's repayment (shown as a
- * positive amount; it's a deduction). With no loan each column is a single, wider bar.
+ * and, when there's a loan or taxes, a second bar just to the right with that year's repayment and
+ * taxes (shown as positive amounts; they're deductions). Without either each column is a single,
+ * wider bar.
  * Hovering (or arrow keys on the focused plot) shows each source's amount for that year.
  */
 export class CashFlowChart {
@@ -173,10 +180,13 @@ export class CashFlowChart {
         `Charts are only available for timespans of ${MAX_YEARS} years or less`));
       return;
     }
-    // Keep income and loan repayments (as positive amounts); the start column only shows when
-    // something is received then.
+    // Keep income, and loan repayments and taxes as positive amounts; the start column only shows
+    // when something is received then.
     this.years = Calculator.yearlyCashFlows(this.opp, settings, { discounted: this.opp.chartMode === 'pv' })
-      .map(({ year, income, costs }) => ({ year, income, costs: costs.loan ? { loan: -costs.loan } : {} }))
+      .map(({ year, income, costs }) => ({
+        year, income,
+        costs: Object.fromEntries(COSTS.filter((s) => costs[s.key]).map((s) => [s.key, -costs[s.key]])),
+      }))
       .filter((row) => row.year > 0 || Object.keys(row.income).length);
     if (this.opp.chartCumulative) this.years = CashFlowChart.runningTotals(this.years);
     const sum = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
@@ -298,6 +308,7 @@ export class CashFlowChart {
       ...incomeRows.map((s) => line(s, 'income')),
       incomeRows.length > 1 ? total('Income', income) : null,
       ...costRows.map((s) => line(s, 'costs')),
+      costRows.length > 1 ? total('Deductions', costs) : null,
       incomeRows.length && costRows.length ? total('Net', income - costs) : null,
       !incomeRows.length && !costRows.length ? el('div', { class: 'muted' }, 'No cash flow this year') : null,
     ].filter(Boolean));

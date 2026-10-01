@@ -1,3 +1,12 @@
+import { Tax } from './Tax.js';
+
+/** Tax kinds (Tax.year) → their breakdown / cash-flow keys. */
+const TAX_KEYS = { federal: 'federalTax', payroll: 'payrollTax', state: 'stateTax' };
+/** Cash-flow keys taxed as ordinary income, and growth taxed as capital gains when cashed out at year n. */
+const ORDINARY_KEYS = ['salary', 'salaryInvested', 'yearlyReturn', 'yearlyReturnInvested', 'initialPayout', 'payout'];
+const GROWTH_KEYS = ['salaryGrowth', 'yearlyReturnGrowth', 'initialPayoutGrowth'];
+const sumKeys = (obj, keys) => keys.reduce((a, k) => a + (obj[k] || 0), 0);
+
 /**
  * Present-value math. All rates passed in are decimals (0.05 = 5%).
  * d = discount rate, n = years, t = 1..n.
@@ -137,7 +146,8 @@ export class Calculator {
    * On an indefinite timespan the entered growth rates are set aside so the PV stays finite:
    * one-time amounts (initial investment, invested initial payout) grow at the discount rate,
    * holding their value, and yearly return / salary don't grow (constant perpetuity C / d) while
-   * their invested shares grow at the discount rate.
+   * their invested shares grow at the discount rate. With taxes on, `federalTax`, `payrollTax` and
+   * `stateTax` (negative) are part of the total (see taxPV); they're 0 otherwise.
    */
   static opportunityBreakdown(opp, settings) {
     const d = (Number(settings.discountRate) || 0) / 100;
@@ -159,8 +169,71 @@ export class Calculator {
       payout: Calculator.payoutPV(+opp.payout || 0, d, n),
       loan: Calculator.loanPV(+opp.loan.amount || 0, rate(opp.loan.rate), d, n),
     };
-    const total = Object.values(parts).reduce((a, b) => a + b, 0);
-    return { ...parts, total };
+    const preTax = Object.values(parts).reduce((a, b) => a + b, 0);
+    const taxes = Calculator.taxPV(opp, settings, d, n);
+    const taxTotal = Object.values(taxes).reduce((a, b) => a + b, 0);
+    // Unbounded income pays unbounded tax, but always less than it earns.
+    const total = preTax === Infinity && taxTotal === -Infinity ? Infinity : preTax + taxTotal;
+    return { ...parts, ...taxes, total };
+  }
+
+  /** Whether the project includes federal and state taxes (settings.taxes: { enabled, state }). */
+  static taxesOn(settings) {
+    return !!settings.taxes?.enabled;
+  }
+
+  /**
+   * Present value of the taxes on an opportunity, as negative amounts by kind
+   * ({ federalTax, payrollTax, stateTax }); all 0 when taxes are off. Each year's taxable income
+   * is taxed on its own (see taxableIncome), then discounted like the cash flows.
+   * Indefinite: the initial payout is taxed at the start, and yearly return + salary (held
+   * constant) are taxed the same every year, a perpetuity tax / d; investments are never cashed
+   * out, so there are no capital gains.
+   */
+  static taxPV(opp, settings, d, n) {
+    const out = { federalTax: 0, payrollTax: 0, stateTax: 0 };
+    if (!Calculator.taxesOn(settings)) return out;
+    const state = settings.taxes.state;
+    if (n === Infinity) {
+      const start = Tax.year({ ordinary: +opp.initialPayout?.amount || 0, wages: 0 }, state);
+      const R = +opp.yearlyReturn?.amount || 0;
+      const S = +opp.salary?.amount || 0;
+      const yearly = Tax.year({ ordinary: R + S, wages: S }, state);
+      for (const [kind, key] of Object.entries(TAX_KEYS)) {
+        const forever = !yearly[kind] ? 0 : d > 0 ? yearly[kind] / d : Infinity;
+        out[key] = -(start[kind] + forever) || 0;
+      }
+      return out;
+    }
+    const years = Calculator.baseCashFlows(opp, settings, n);
+    Calculator.yearlyTaxes(years, settings).forEach((tax, t) => {
+      for (const [kind, key] of Object.entries(TAX_KEYS)) out[key] -= tax[kind] / Math.pow(1 + d, t);
+    });
+    return out;
+  }
+
+  /**
+   * Each year's taxable income from pre-tax cash flows for years 0..n (baseCashFlows):
+   * { ordinary, wages, capitalGains }. Salary and yearly returns are taxed in the year they're
+   * received, invested or not; the initial payout at the start; the final payout in year n.
+   * Investments are cashed out at year n, so all capital gains fall then: the initial investment's
+   * value less what was paid in, plus all the growth on invested payout, salary and returns.
+   */
+  static taxableIncome(years) {
+    const n = years.length - 1;
+    const gains = (years[n].income.initial || 0) + (years[0].costs.initial || 0)
+      + years.reduce((a, row) => a + sumKeys(row.income, GROWTH_KEYS), 0);
+    return years.map((row, t) => ({
+      ordinary: sumKeys(row.income, ORDINARY_KEYS),
+      wages: sumKeys(row.income, ['salary', 'salaryInvested']),
+      capitalGains: t === n ? gains : 0,
+    }));
+  }
+
+  /** Taxes owed each year, [{ federal, payroll, state }] lined up with years 0..n; null when taxes are off. */
+  static yearlyTaxes(years, settings) {
+    if (!Calculator.taxesOn(settings)) return null;
+    return Calculator.taxableIncome(years).map((income) => Tax.year(income, settings.taxes.state));
   }
 
   /** Resolve a yearly return or salary (see Models.yearlyStream) to streamPV's { S, g, k, cap, p, gi } (decimals). */
@@ -192,19 +265,36 @@ export class Calculator {
    * year's amount put in, and `salaryGrowth` / `yearlyReturnGrowth` the growth that year on what was
    * put in before (no growth in the year earned), so over the years they add up to the final
    * balance. An initial payout is received at the start; if it's invested, `initialPayoutGrowth` is
-   * what it earns each year after that. Amounts are as received or accrued that year; with
-   * `discounted` each is divided by (1+d)^t.
+   * what it earns each year after that. With taxes on, each year's `federalTax`, `payrollTax` and
+   * `stateTax` are costs too. Amounts are as received or accrued that year; with `discounted` each
+   * is divided by (1+d)^t.
    */
   static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
     const n = Calculator.resolveYears(opp, settings);
     if (n === Infinity) return null;
     const d = (Number(settings.discountRate) || 0) / 100;
+    const years = Calculator.baseCashFlows(opp, settings, n);
+    Calculator.yearlyTaxes(years, settings)?.forEach((tax, t) => {
+      for (const [kind, key] of Object.entries(TAX_KEYS)) if (tax[kind]) years[t].costs[key] = -tax[kind];
+    });
+    if (discounted) {
+      for (const row of years) {
+        const factor = Math.pow(1 + d, row.year);
+        for (const side of [row.income, row.costs]) for (const key of Object.keys(side)) side[key] /= factor;
+      }
+    }
+    const hasStart = Object.keys(years[0].income).length || Object.keys(years[0].costs).length;
+    return hasStart ? years : years.slice(1);
+  }
+
+  /** Pre-tax, undiscounted cash flows for every year 0..n of a set timespan (see yearlyCashFlows). */
+  static baseCashFlows(opp, settings, n) {
+    const d = (Number(settings.discountRate) || 0) / 100;
     const rate = (r) => Calculator.resolveRate(r, settings);
     const years = Array.from({ length: n + 1 }, (_, year) => ({ year, income: {}, costs: {} }));
     const add = (t, side, key, amount) => {
       if (!amount) return;
-      const v = discounted ? amount / Math.pow(1 + d, t) : amount;
-      years[t][side][key] = (years[t][side][key] || 0) + v;
+      years[t][side][key] = (years[t][side][key] || 0) + amount;
     };
 
     const I = +opp.initial?.amount || 0;
@@ -237,9 +327,46 @@ export class Calculator {
       add(t, 'costs', 'loan', -A);
     }
     add(n, 'income', 'payout', +opp.payout || 0);
+    return years;
+  }
 
-    const hasStart = Object.keys(years[0].income).length || Object.keys(years[0].costs).length;
-    return hasStart ? years : years.slice(1);
+  /**
+   * Year-by-year statement for the yearly table (null when indefinite), in cash terms: for years
+   * 0..n (the start only when something happens then), what's received (`income`: salary and
+   * yearly return in full, payouts, and every investment cashed out at year n), what's paid out
+   * (`expenses`: amounts put into investments, loan repayments), `taxes` ({ federal, payroll,
+   * state }, all 0 when taxes are off) and the `net` left. All amounts are positive except `net`.
+   * Discounting each year's net by (1+d)^t and adding them up gives the opportunity's PV.
+   */
+  static yearlyLedger(opp, settings) {
+    const n = Calculator.resolveYears(opp, settings);
+    if (n === Infinity) return null;
+    const years = Calculator.baseCashFlows(opp, settings, n);
+    const taxes = Calculator.yearlyTaxes(years, settings);
+    const payoutInvested = opp.initialPayout?.invest ? +opp.initialPayout.amount || 0 : 0;
+    // Invested payout, salary and returns: everything put in plus its growth, cashed out at year n.
+    const balance = payoutInvested + years.reduce((a, row) =>
+      a + sumKeys(row.income, ['salaryInvested', 'yearlyReturnInvested', ...GROWTH_KEYS]), 0);
+    const rows = years.map(({ year, income: i, costs }) => {
+      const income = {
+        salary: sumKeys(i, ['salary', 'salaryInvested']),
+        yearlyReturn: sumKeys(i, ['yearlyReturn', 'yearlyReturnInvested']),
+        initialPayout: i.initialPayout || 0,
+        payout: i.payout || 0,
+        cashedOut: year === n ? (i.initial || 0) + balance : 0,
+      };
+      const expenses = {
+        invested: -(costs.initial || 0) + sumKeys(i, ['salaryInvested', 'yearlyReturnInvested'])
+          + (year === 0 ? payoutInvested : 0),
+        loan: -(costs.loan || 0),
+      };
+      const tax = taxes?.[year] ?? { federal: 0, payroll: 0, state: 0 };
+      const total = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
+      return { year, income, expenses, taxes: tax, net: total(income) - total(expenses) - total(tax) };
+    });
+    const start = rows[0];
+    const hasStart = [start.income, start.expenses, start.taxes].some((obj) => Object.values(obj).some(Boolean));
+    return hasStart ? rows : rows.slice(1);
   }
 
   static opportunityPV(opp, settings) {

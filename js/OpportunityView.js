@@ -4,6 +4,7 @@ import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
 import { Risk } from './Risk.js';
 import { CashFlowChart } from './CashFlowChart.js';
+import { YearlyTable } from './YearlyTable.js';
 
 /** Wording for the two yearly-amount sections (see streamGroup). */
 const STREAMS = {
@@ -42,6 +43,9 @@ const BREAKDOWN_LABELS = {
   payout: 'Final payout',
   salary: 'Salary',
   salaryInvested: 'Invested salary',
+  federalTax: 'Federal income tax',
+  payrollTax: 'Social Security & Medicare',
+  stateTax: 'State tax',
 };
 
 /** One income source (opportunity) card: inputs + live PV. */
@@ -99,6 +103,7 @@ export class OpportunityView {
           this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)')),
         this.streamGroup(opp.salary, STREAMS.salary)),
       (this.chart = new CashFlowChart(opp, ctx)).render(),
+      (this.table = new YearlyTable(opp, ctx)).render(),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
@@ -393,10 +398,13 @@ export class OpportunityView {
         + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
         + 'yearly return and salary are held constant (no increase or cap), valued as a perpetuity '
         + '(amount ÷ discount rate), and invested returns and salary grow at the discount rate. '
-        + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.';
+        + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.'
+        + (Calculator.taxesOn(this.ctx.project.settings)
+          ? ' Taxes are the same every year, and investments are never cashed out, so their gains aren’t taxed.' : '');
     }
     const unbounded = Object.entries(BREAKDOWN_LABELS)
-      .filter(([key]) => !Number.isFinite(b[key])).map(([, label]) => label.toLowerCase());
+      .filter(([key]) => !Number.isFinite(b[key]))
+      .map(([key, label]) => (key === 'payrollTax' ? label : label.toLowerCase())); // keep proper nouns
     this.warningEl.hidden = !unbounded.length;
     if (unbounded.length) {
       this.warningEl.textContent = `Unbounded: with a discount rate of ${d}%, the ${unbounded.join(' and ')} `
@@ -407,6 +415,12 @@ export class OpportunityView {
       .filter(([key]) => Math.abs(b[key]) >= 0.005)
       .flatMap(([key, label]) => [el('dt', {}, label), showPV(el('dd'), b[key])]));
     this.rateSelectors.forEach((r) => r.update());
-    this.chart.update();
+
+    // Project-wide switches (Assumptions bar): hidden ones aren't redrawn.
+    const display = this.ctx.project.display ?? {};
+    this.chart.root.hidden = display.charts === false;
+    if (!this.chart.root.hidden) this.chart.update();
+    if (display.tables === false) this.table.root.hidden = true;
+    else this.table.update(); // hides itself on an indefinite timespan
   }
 }
