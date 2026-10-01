@@ -43,6 +43,7 @@
   --cf-salary: #2a78d6;
   --cf-salary-invested: #eda100;
   --cf-return: #1baf7a;
+  --cf-return-invested: #e34948;
   --cf-investment: #eb6834;
   --cf-initial-payout: #4a3aa7;
   --cf-final-payout: #008300;
@@ -82,6 +83,7 @@
   --cf-salary: #3987e5;
   --cf-salary-invested: #c98500;
   --cf-return: #199e70;
+  --cf-return-invested: #e66767;
   --cf-investment: #d95926;
   --cf-initial-payout: #9085e9;
   --cf-final-payout: #008300;
@@ -831,11 +833,11 @@ input.strategy-title {
 /* Initial payout: rate column appears only when the payout is invested */
 .payout-group > .checkbox { grid-column: 1 / -1; margin-top: -4px; }
 
-/* Yearly salary: increase, cap, and optional investing */
-.salary-group > .checkbox,
-.salary-group > .info-note { grid-column: 1 / -1; }
-.salary-group > .checkbox { margin-top: -2px; }
-.salary-group:not(.is-investing) > .salary-invest { display: none; }
+/* Yearly return / salary: increase, cap, and optional investing */
+.stream-group > .checkbox,
+.stream-group > .info-note { grid-column: 1 / -1; }
+.stream-group > .checkbox { margin-top: -2px; }
+.stream-group:not(.is-investing) > .stream-invest { display: none; }
 .raise-box { display: flex; gap: 6px; min-width: 0; }
 .raise-box > .raise-percent, .raise-box > .raise-fixed { flex: 1; min-width: 0; }
 .raise-percent > .with-suffix { width: 100%; }

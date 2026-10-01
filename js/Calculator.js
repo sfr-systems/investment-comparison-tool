@@ -30,7 +30,7 @@ export class Calculator {
   }
 
   /**
-   * Σ C(1+g)^(t−1) / (1+d)^t — used for yearly return and yearly salary.
+   * Σ C(1+g)^(t−1) / (1+d)^t: a yearly amount growing at g.
    * Indefinite: growing perpetuity C / (d − g), which only converges when g < d.
    */
   static growingAnnuityPV(C, g, d, n) {
@@ -44,34 +44,39 @@ export class Calculator {
   }
 
   /**
-   * Yearly salary S paid at the end of each year t = 1..n, rising by g (a rate) or k (a fixed
-   * dollar amount) a year until it reaches `cap` (the cap never lowers pay below S, and only
-   * applies when the increase is > 0). A negative k lowers pay each year, never below 0.
-   * A share p of each year's pay is invested at the end of that year and grows at gi from the
-   * following year until year n, where it's counted: p·pay_t·(1+gi)^(n−t) / (1+d)^n.
-   * Returns { kept, invested } present values.
-   * Indefinite: no raises or cap and invested pay grows at d, so the total is the perpetuity S/d.
+   * A yearly amount S (yearly return or salary) received at the end of each year t = 1..n, rising
+   * by g (a rate) or k (a fixed dollar amount) a year until it reaches `cap` (the cap never lowers
+   * the amount below S, and only applies when the increase is > 0). A negative k lowers it each
+   * year, never below 0. A share p of each year's amount is invested at the end of that year and
+   * grows at gi from the following year until year n, where it's counted:
+   * p·amount_t·(1+gi)^(n−t) / (1+d)^n. Returns { kept, invested } present values.
+   * Indefinite: no increase or cap and the invested share grows at d, so the total is the perpetuity S/d.
    */
-  static salaryPV({ S, g = 0, k = 0, cap = null, p = 0, gi = 0 }, d, n) {
+  static streamPV({ S, g = 0, k = 0, cap = null, p = 0, gi = 0 }, d, n) {
     if (!S) return { kept: 0, invested: 0 };
     if (n === Infinity) {
       const total = Calculator.growingAnnuityPV(S, 0, d, Infinity);
       return { kept: p >= 1 ? 0 : total * (1 - p), invested: p <= 0 ? 0 : total * p };
     }
-    const ceiling = (g > 0 || k > 0) && cap != null ? Math.max(cap, S) : Infinity;
+    const ceiling = Calculator.streamCeiling({ S, g, k, cap });
     const endDiscount = Math.pow(1 + d, n);
     let kept = 0;
     let invested = 0;
     for (let t = 1; t <= n; t++) {
-      const pay = Calculator.salaryPay(t, { S, g, k }, ceiling);
-      kept += ((1 - p) * pay) / Math.pow(1 + d, t);
-      invested += (p * pay * Math.pow(1 + gi, n - t)) / endDiscount;
+      const amount = Calculator.streamAmount(t, { S, g, k }, ceiling);
+      kept += ((1 - p) * amount) / Math.pow(1 + d, t);
+      invested += (p * amount * Math.pow(1 + gi, n - t)) / endDiscount;
     }
     return { kept, invested };
   }
 
-  /** Pay in year t: S(1+g)^(t−1) + k(t−1), never below 0 or above `ceiling`. */
-  static salaryPay(t, { S, g = 0, k = 0 }, ceiling = Infinity) {
+  /** The most a yearly amount can reach: max(cap, S) when it rises and has a cap, else unlimited. */
+  static streamCeiling({ S, g = 0, k = 0, cap = null }) {
+    return (g > 0 || k > 0) && cap != null ? Math.max(cap, S) : Infinity;
+  }
+
+  /** Amount in year t: S(1+g)^(t−1) + k(t−1), never below 0 or above `ceiling`. */
+  static streamAmount(t, { S, g = 0, k = 0 }, ceiling = Infinity) {
     return Math.min(Math.max(0, S * Math.pow(1 + g, t - 1) + k * (t - 1)), ceiling);
   }
 
@@ -131,7 +136,8 @@ export class Calculator {
    * Breakdown of an opportunity's PV by component, plus the total.
    * On an indefinite timespan the entered growth rates are set aside so the PV stays finite:
    * one-time amounts (initial investment, invested initial payout) grow at the discount rate,
-   * holding their value, and yearly return / salary don't grow (constant perpetuity C / d).
+   * holding their value, and yearly return / salary don't grow (constant perpetuity C / d) while
+   * their invested shares grow at the discount rate.
    */
   static opportunityBreakdown(opp, settings) {
     const d = (Number(settings.discountRate) || 0) / 100;
@@ -139,13 +145,17 @@ export class Calculator {
     const rate = (r) => Calculator.resolveRate(r, settings);
     const indefinite = n === Infinity;
     const lumpGrowth = (r) => (indefinite ? d : rate(r));
-    const streamGrowth = (r) => (indefinite ? 0 : rate(r));
+    const stream = (group) => Calculator.streamPV(Calculator.streamInputs(group, settings, d, n), d, n);
+    const returns = stream(opp.yearlyReturn);
+    const salary = stream(opp.salary);
     const parts = {
       initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, lumpGrowth(opp.initial.rate), d, n),
       initialPayout: Calculator.initialPayoutPV(+opp.initialPayout?.amount || 0,
         !!opp.initialPayout?.invest, lumpGrowth(opp.initialPayout?.rate), d, n),
-      yearlyReturn: Calculator.growingAnnuityPV(+opp.yearlyReturn.amount || 0, streamGrowth(opp.yearlyReturn.rate), d, n),
-      ...Calculator.salaryParts(opp.salary, settings, d, n),
+      yearlyReturn: returns.kept,
+      yearlyReturnInvested: returns.invested,
+      salary: salary.kept,
+      salaryInvested: salary.invested,
       payout: Calculator.payoutPV(+opp.payout || 0, d, n),
       loan: Calculator.loanPV(+opp.loan.amount || 0, rate(opp.loan.rate), d, n),
     };
@@ -153,29 +163,22 @@ export class Calculator {
     return { ...parts, total };
   }
 
-  /** { salary, salaryInvested } for an opportunity's salary settings. */
-  static salaryParts(sal = {}, settings, d, n) {
-    const { kept, invested } = Calculator.salaryPV(Calculator.salaryInputs(sal, settings, d, n), d, n);
-    return { salary: kept, salaryInvested: invested };
-  }
-
-  /** Resolve salary settings to salaryPV's { S, g, k, cap, p, gi } (decimals). */
-  static salaryInputs(sal = {}, settings, d, n) {
+  /** Resolve a yearly return or salary (see Models.yearlyStream) to streamPV's { S, g, k, cap, p, gi } (decimals). */
+  static streamInputs(group = {}, settings, d, n) {
     const indefinite = n === Infinity;
-    // `raise` is a percent, `raiseAmount` dollars (raiseMode 'fixed'); salaries saved before
-    // either existed used a rate selector.
-    const fixed = sal.raiseMode === 'fixed';
+    // `raise` is a percent, `raiseAmount` dollars (raiseMode 'fixed'); ones saved before either
+    // existed had a growth-rate selector (`rate`).
+    const fixed = group.raiseMode === 'fixed';
     const raise = fixed ? 0
-      : sal.raise != null ? (Number(sal.raise) || 0) / 100 : Calculator.resolveRate(sal.rate, settings);
-    const raiseAmount = fixed ? Number(sal.raiseAmount) || 0 : 0;
-    const investing = !!sal.invest;
+      : group.raise != null ? (Number(group.raise) || 0) / 100 : Calculator.resolveRate(group.rate, settings);
+    const raiseAmount = fixed ? Number(group.raiseAmount) || 0 : 0;
     return {
-      S: +sal.amount || 0,
+      S: +group.amount || 0,
       g: indefinite ? 0 : raise,
       k: indefinite ? 0 : raiseAmount,
-      cap: indefinite ? null : sal.cap,
-      p: investing ? Math.min(100, Math.max(0, Number(sal.investPct ?? 100))) / 100 : 0,
-      gi: indefinite ? d : Calculator.resolveRate(sal.investRate, settings),
+      cap: indefinite ? null : group.cap ?? null,
+      p: group.invest ? Math.min(100, Math.max(0, Number(group.investPct ?? 100))) / 100 : 0,
+      gi: indefinite ? d : Calculator.resolveRate(group.investRate, settings),
     };
   }
 
@@ -184,13 +187,13 @@ export class Calculator {
    * Returns [{ year, income: { key: amount }, costs: { key: amount < 0 } }] for years 0..n,
    * where year 0 is the start (listed only when something happens then). Keys match
    * opportunityBreakdown; `initial` is the investment paid in (a cost at the start) and its
-   * grown value (income at year n). Invested salary is shown as it builds up rather than as one
-   * balance at year n: `salaryInvested` is the share of that year's pay put in, and
-   * `salaryGrowth` the growth that year on what was put in before (no growth in the year earned),
-   * so over the years they add up to the final balance. An initial payout is received at the start;
-   * if it's invested, `initialPayoutGrowth` is what it earns each year after that. Amounts are as
-   * received or accrued that
-   * year; with `discounted` each is divided by (1+d)^t.
+   * grown value (income at year n). Invested salary and returns are shown as they build up rather
+   * than as one balance at year n: `salaryInvested` / `yearlyReturnInvested` is the share of that
+   * year's amount put in, and `salaryGrowth` / `yearlyReturnGrowth` the growth that year on what was
+   * put in before (no growth in the year earned), so over the years they add up to the final
+   * balance. An initial payout is received at the start; if it's invested, `initialPayoutGrowth` is
+   * what it earns each year after that. Amounts are as received or accrued that year; with
+   * `discounted` each is divided by (1+d)^t.
    */
   static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
     const n = Calculator.resolveYears(opp, settings);
@@ -215,21 +218,22 @@ export class Calculator {
       for (let t = 1; t <= n; t++) add(t, 'income', 'initialPayoutGrowth', P0 * Math.pow(1 + g, t - 1) * g);
     }
 
-    const R = +opp.yearlyReturn?.amount || 0;
-    const gR = rate(opp.yearlyReturn?.rate);
-    const s = Calculator.salaryInputs(opp.salary, settings, d, n);
-    const ceiling = (s.g > 0 || s.k > 0) && s.cap != null ? Math.max(s.cap, s.S) : Infinity;
+    const streams = [['yearlyReturn', opp.yearlyReturn], ['salary', opp.salary]].map(([key, group]) => {
+      const s = Calculator.streamInputs(group, settings, d, n);
+      return { key, s, ceiling: Calculator.streamCeiling(s), balance: 0 }; // balance: invested so far
+    });
     const L = +opp.loan?.amount || 0;
     const A = L ? Calculator.loanPayment(L, rate(opp.loan?.rate), n) : 0;
-    let balance = 0; // invested salary so far
     for (let t = 1; t <= n; t++) {
-      add(t, 'income', 'yearlyReturn', R * Math.pow(1 + gR, t - 1));
-      const pay = s.S ? Calculator.salaryPay(t, s, ceiling) : 0;
-      add(t, 'income', 'salary', (1 - s.p) * pay);
-      const growth = balance * s.gi;
-      add(t, 'income', 'salaryGrowth', growth);
-      add(t, 'income', 'salaryInvested', s.p * pay);
-      balance += growth + s.p * pay;
+      for (const st of streams) {
+        const { key, s } = st;
+        const amount = s.S ? Calculator.streamAmount(t, s, st.ceiling) : 0;
+        const growth = st.balance * s.gi;
+        add(t, 'income', key, (1 - s.p) * amount);
+        add(t, 'income', `${key}Growth`, growth);
+        add(t, 'income', `${key}Invested`, s.p * amount);
+        st.balance += growth + s.p * amount;
+      }
       add(t, 'costs', 'loan', -A);
     }
     add(n, 'income', 'payout', +opp.payout || 0);

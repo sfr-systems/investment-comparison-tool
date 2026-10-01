@@ -5,11 +5,40 @@ import { Models } from './Models.js';
 import { Risk } from './Risk.js';
 import { CashFlowChart } from './CashFlowChart.js';
 
+/** Wording for the two yearly-amount sections (see streamGroup). */
+const STREAMS = {
+  yearlyReturn: {
+    amount: 'Yearly return',
+    cap: 'Return cap',
+    invest: 'Invest some or all returns at the end of each year',
+    invested: 'Returns invested',
+    investedOf: 'returns',
+    noteKey: 'returnNoteCollapsed',
+    noteHeading: 'How invested returns grow. ',
+    note: 'Invested returns go in at the end of each year, so they earn nothing in the year they were received. '
+      + 'They start growing the following year and compound every year after that; the balance is '
+      + 'counted at its value at the end of the timespan.',
+  },
+  salary: {
+    amount: 'Yearly salary',
+    cap: 'Salary cap',
+    invest: 'Invest some or all salary earnings at the end of each year',
+    invested: 'Salary invested',
+    investedOf: 'salary',
+    noteKey: 'salaryNoteCollapsed',
+    noteHeading: 'How invested salary grows. ',
+    note: 'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
+      + 'It starts growing the following year and compounds every year after that; the balance is '
+      + 'counted at its value at the end of the timespan.',
+  },
+};
+
 const BREAKDOWN_LABELS = {
   loan: 'Loan',
   initial: 'Investment',
   initialPayout: 'Initial payout',
   yearlyReturn: 'Returns',
+  yearlyReturnInvested: 'Invested returns',
   payout: 'Final payout',
   salary: 'Salary',
   salaryInvested: 'Invested salary',
@@ -22,6 +51,7 @@ export class OpportunityView {
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.rateSelectors = [];
+    this.streamSyncs = []; // per yearly-amount section: (indefinite) => void
   }
 
   render() {
@@ -64,11 +94,10 @@ export class OpportunityView {
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate', 'loan'),
         this.amountWithRate('Initial investment', opp.initial, 'Growth rate', 'lump'),
         this.initialPayoutGroup(opp.initialPayout),
-        this.amountWithRate('Yearly return', opp.yearlyReturn, 'Growth rate', 'stream'),
+        this.streamGroup(opp.yearlyReturn, STREAMS.yearlyReturn),
         this.finalPayoutField = this.field('Final payout (one-time)',
           this.amountInput(opp.payout, (n) => { opp.payout = n; }, 'Final payout (one-time)')),
-
-        this.salaryGroup(opp.salary)),
+        this.streamGroup(opp.salary, STREAMS.salary)),
       (this.chart = new CashFlowChart(opp, ctx)).render(),
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
@@ -92,7 +121,7 @@ export class OpportunityView {
     return el('span', { class: 'with-prefix' }, el('span', { class: 'prefix' }, '$'), input);
   }
 
-  /** kind: 'lump' (one-time growth), 'stream' (yearly growth) or 'loan' (interest rate). */
+  /** kind: 'lump' (one-time growth) or 'loan' (interest rate). */
   amountWithRate(label, group, rateLabel, kind) {
     const selector = new RateSelector(group.rate, this.ctx, {
       label: `${label} ${rateLabel.toLowerCase()}`, includeDiscount: kind !== 'loan',
@@ -154,124 +183,121 @@ export class OpportunityView {
   }
 
   /**
-   * Yearly salary: amount, yearly increase (% or fixed $), optional cap (enabled once there's an increase),
-   * and an "invest some or all" option with its % and growth rate plus a timing note.
+   * A yearly amount (yearly return or salary, worded by `words` from STREAMS): amount, yearly
+   * increase (% or fixed $), optional cap (enabled once there's an increase), and an "invest some
+   * or all" option with its % and growth rate plus a timing note.
    */
-  salaryGroup(sal) {
+  streamGroup(group, words) {
     const { ctx } = this;
-    const investSelector = new RateSelector(sal.investRate, ctx, { label: 'Invested salary growth rate', includeDiscount: true });
+    const investSelector = new RateSelector(group.investRate, ctx, {
+      label: `Invested ${words.investedOf} growth rate`, includeDiscount: true,
+    });
     investSelector.kind = 'lump';
     this.rateSelectors.push(investSelector);
 
     const pctField = (input) => el('span', { class: 'with-suffix' }, input, el('span', { class: 'suffix' }, '%'));
     const raiseInput = numberInput({
-      value: sal.raise ?? 0, greaterThan: -100, arrowStep: 1,
-      message: 'Increase must be greater than -100%', 'aria-label': 'Yearly salary increase (%)',
-      onValue: (n) => { sal.raise = n; ctx.changed(); },
+      value: group.raise ?? 0, greaterThan: -100, arrowStep: 1,
+      message: 'Increase must be greater than -100%', 'aria-label': `${words.amount} increase (%)`,
+      onValue: (n) => { group.raise = n; ctx.changed(); },
     });
     const raiseAmountInput = numberInput({
-      value: sal.raiseAmount ?? 0, arrowStep: 1000, class: 'amount',
-      message: 'Enter a dollar amount', 'aria-label': 'Yearly salary increase ($)',
-      onValue: (n) => { sal.raiseAmount = n; ctx.changed(); },
+      value: group.raiseAmount ?? 0, arrowStep: 1000, class: 'amount',
+      message: 'Enter a dollar amount', 'aria-label': `${words.amount} increase ($)`,
+      onValue: (n) => { group.raiseAmount = n; ctx.changed(); },
     });
-    this.raiseLocked = el('span', { class: 'rate-locked' });
-    this.raiseBox = el('div', { class: 'lockable raise-box' },
+    const raiseLocked = el('span', { class: 'rate-locked' });
+    const raiseBox = el('div', { class: 'lockable raise-box' },
       el('span', { class: 'raise-percent' }, pctField(raiseInput)),
-      el('span', { class: 'raise-fixed with-prefix' }, el('span', { class: 'prefix' }, '$'), raiseAmountInput),
-      this.raiseModeToggle(sal),
-      this.raiseLocked);
-    this.raiseBox.classList.toggle('is-fixed', sal.raiseMode === 'fixed');
+      el('span', { class: 'raise-fixed with-prefix' }, el('span', { class: 'prefix' }, '$'), raiseAmountInput));
+    raiseBox.append(this.raiseModeToggle(group, raiseBox), raiseLocked);
+    raiseBox.classList.toggle('is-fixed', group.raiseMode === 'fixed');
 
-    this.capInput = numberInput({
-      value: sal.cap ?? '', min: 0, optional: true, class: 'amount', placeholder: 'No cap',
-      message: 'Cap must be zero or positive', 'aria-label': 'Salary cap',
-      onValue: (n) => { sal.cap = n; ctx.changed(); },
+    const capInput = numberInput({
+      value: group.cap ?? '', min: 0, optional: true, class: 'amount', placeholder: 'No cap',
+      message: 'Cap must be zero or positive', 'aria-label': words.cap,
+      onValue: (n) => { group.cap = n; ctx.changed(); },
     });
-    this.capField = this.field('Salary cap',
-      el('span', { class: 'with-prefix' }, el('span', { class: 'prefix' }, '$'), this.capInput));
+    const capField = this.field(words.cap,
+      el('span', { class: 'with-prefix' }, el('span', { class: 'prefix' }, '$'), capInput));
 
     const investPct = numberInput({
-      value: sal.investPct ?? 100, min: 0, max: 100, arrowStep: 5,
-      message: 'Enter a percentage from 0 to 100', 'aria-label': 'Percent of salary invested',
-      onValue: (n) => { sal.investPct = n; ctx.changed(); },
+      value: group.investPct ?? 100, min: 0, max: 100, arrowStep: 5,
+      message: 'Enter a percentage from 0 to 100', 'aria-label': `Percent of ${words.investedOf} invested`,
+      onValue: (n) => { group.investPct = n; ctx.changed(); },
     });
 
-    const root = el('div', { class: 'field-group salary-group' });
-    const sync = () => root.classList.toggle('is-investing', !!sal.invest);
+    const root = el('div', { class: 'field-group stream-group' });
+    const sync = () => root.classList.toggle('is-investing', !!group.invest);
     const checkbox = el('input', {
-      type: 'checkbox', checked: !!sal.invest,
-      onchange: () => { sal.invest = checkbox.checked; sync(); ctx.changed(); },
+      type: 'checkbox', checked: !!group.invest,
+      onchange: () => { group.invest = checkbox.checked; sync(); ctx.changed(); },
     });
 
     root.append(
-      this.field('Yearly salary', this.amountInput(sal.amount, (n) => { sal.amount = n; }, 'Yearly salary')),
-      el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'Yearly increase'), this.raiseBox),
-      this.capField,
-      el('label', { class: 'checkbox' }, checkbox,
-        el('span', {}, 'Invest some or all salary earnings at the end of each year')),
-      Object.assign(this.field('Salary invested', pctField(investPct)), { className: 'field salary-invest' }),
-      el('div', { class: 'field salary-invest' },
+      this.field(words.amount, this.amountInput(group.amount, (n) => { group.amount = n; }, words.amount)),
+      el('div', { class: 'field' }, el('span', { class: 'field-label' }, 'Yearly increase'), raiseBox),
+      capField,
+      el('label', { class: 'checkbox' }, checkbox, el('span', {}, words.invest)),
+      Object.assign(this.field(words.invested, pctField(investPct)), { className: 'field stream-invest' }),
+      el('div', { class: 'field stream-invest' },
         el('span', { class: 'field-label' }, 'Growth rate'), investSelector.render()),
       this.collapsibleNote({
-        className: 'info-note salary-invest', iconName: 'info', collapsedKey: 'salaryNoteCollapsed',
+        className: 'info-note stream-invest', iconName: 'info', collapsedKey: words.noteKey,
         defaultCollapsed: true,
-        heading: 'How invested salary grows. ',
-        body: el('span', { class: 'note-body' },
-          'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
-          + 'It starts growing the following year and compounds every year after that; the balance is '
-          + 'counted at its value at the end of the timespan.'),
+        heading: words.noteHeading,
+        body: el('span', { class: 'note-body' }, words.note),
       }));
     sync();
+
+    // Controls that depend on the increase and the timespan (run from update()).
+    this.streamSyncs.push((indefinite) => {
+      const hasRaise = Number(group.raiseMode === 'fixed' ? group.raiseAmount : group.raise) > 0;
+      const capOff = indefinite || !hasRaise;
+      capInput.disabled = capOff;
+      capField.classList.toggle('is-disabled', capOff);
+      capField.title = indefinite ? 'Not used on an indefinite timespan'
+        : hasRaise ? '' : 'Set a yearly increase above 0 to use a cap';
+      raiseBox.classList.toggle('is-locked', indefinite);
+      raiseBox.querySelectorAll('input, button').forEach((c) => { c.disabled = indefinite; });
+      raiseLocked.replaceChildren(...(indefinite ? [icon('alert'), el('span', {}, 'None (held constant)')] : []));
+      raiseLocked.title = indefinite ? 'Fixed while the timespan is Indefinite' : '';
+    });
     return root;
   }
 
   /** [% | #] toggle: a yearly percentage increase or a fixed dollar increase. */
-  raiseModeToggle(sal) {
+  raiseModeToggle(group, raiseBox) {
     const modes = [
       { key: 'percent', label: '%', title: 'Percentage increase' },
       { key: 'fixed', label: '#', title: 'Fixed dollar increase' },
     ];
-    const group = el('div', { class: 'unit-toggle', role: 'radiogroup', 'aria-label': 'Yearly increase type' });
+    const toggle = el('div', { class: 'unit-toggle', role: 'radiogroup', 'aria-label': 'Yearly increase type' });
     const buttons = modes.map((m) => el('button', {
       type: 'button', class: 'unit-option', role: 'radio', title: m.title, 'aria-label': m.title,
       onclick: () => {
-        if (sal.raiseMode === m.key) return;
-        sal.raiseMode = m.key;
+        if (group.raiseMode === m.key) return;
+        group.raiseMode = m.key;
         sync();
-        this.raiseBox.classList.toggle('is-fixed', m.key === 'fixed');
+        raiseBox.classList.toggle('is-fixed', m.key === 'fixed');
         this.ctx.changed();
       },
     }, m.label));
     const sync = () => buttons.forEach((b, i) => {
-      const on = modes[i].key === (sal.raiseMode ?? 'percent');
+      const on = modes[i].key === (group.raiseMode ?? 'percent');
       b.setAttribute('aria-checked', String(on));
       b.tabIndex = on ? 0 : -1;
     });
-    group.addEventListener('keydown', (e) => {
+    toggle.addEventListener('keydown', (e) => {
       const i = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0 }[e.key];
       if (i == null) return;
       e.preventDefault();
       buttons[i].click();
       buttons[i].focus();
     });
-    group.append(...buttons);
+    toggle.append(...buttons);
     sync();
-    return group;
-  }
-
-  /** Salary controls that depend on the raise and the timespan. */
-  syncSalary(indefinite) {
-    const sal = this.opp.salary;
-    const hasRaise = Number(sal.raiseMode === 'fixed' ? sal.raiseAmount : sal.raise) > 0;
-    const capOff = indefinite || !hasRaise;
-    this.capInput.disabled = capOff;
-    this.capField.classList.toggle('is-disabled', capOff);
-    this.capField.title = indefinite ? 'Not used on an indefinite timespan'
-      : hasRaise ? '' : 'Set a yearly increase above 0 to use a cap';
-    this.raiseBox.classList.toggle('is-locked', indefinite);
-    this.raiseBox.querySelectorAll('input, button').forEach((c) => { c.disabled = indefinite; });
-    this.raiseLocked.replaceChildren(...(indefinite ? [icon('alert'), el('span', {}, 'None (held constant)')] : []));
-    this.raiseLocked.title = indefinite ? 'Fixed while the timespan is Indefinite' : '';
+    return toggle;
   }
 
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
@@ -358,16 +384,15 @@ export class OpportunityView {
     const d = Number(this.ctx.project.settings.discountRate) || 0;
     this.rateSelectors.forEach((r) => {
       if (r.kind === 'lump') r.setLocked(indefinite ? `Discount rate (${d}%)` : null);
-      if (r.kind === 'stream') r.setLocked(indefinite ? 'None (held constant)' : null);
     });
     this.payoutCheckbox.disabled = indefinite;
-    this.syncSalary(indefinite);
+    this.streamSyncs.forEach((sync) => sync(indefinite));
     this.indefiniteNote.hidden = !indefinite;
     if (indefinite) {
       this.noteBody.textContent = 'Any growth at or above the discount rate would make the present value infinite, so '
         + `one-time amounts grow at the discount rate (${d}%), keeping their value in today's dollars, `
-        + 'yearly return and salary are held constant (no salary increase or cap), valued as a perpetuity '
-        + '(amount ÷ discount rate), and invested salary grows at the discount rate. '
+        + 'yearly return and salary are held constant (no increase or cap), valued as a perpetuity '
+        + '(amount ÷ discount rate), and invested returns and salary grow at the discount rate. '
         + 'The final payout is never received. Your chosen rates are kept for when you pick a set timespan.';
     }
     const unbounded = Object.entries(BREAKDOWN_LABELS)

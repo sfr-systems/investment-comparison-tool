@@ -1,5 +1,6 @@
 // Run: node js/tests/calculator.test.mjs
 import { Calculator as C } from '../Calculator.js';
+import { Models } from '../Models.js';
 
 let failed = 0;
 function check(name, actual, expected, tol = 1e-4) {
@@ -122,7 +123,7 @@ check('finite timespan keeps entered growth',
   40000 / 1.07 + 40000 * 1.12 / 1.07 ** 2);
 
 // ---- Salary: yearly increase, cap, and investing part of each year's pay
-const sal = (o, d, n) => { const r = C.salaryPV(o, d, n); return r.kept + r.invested; };
+const sal = (o, d, n) => { const r = C.streamPV(o, d, n); return r.kept + r.invested; };
 // Raise 10%, d 10%, n 3: pays 1000, 1100, 1210 → each worth 909.0909 today = 2727.2727
 check('salary raise 10%, no cap', sal({ S: 1000, g: 0.10 }, 0.10, 3), 2727.2727);
 // Cap 1100: pays 1000, 1100, 1100 → 909.0909 + 909.0909 + 826.4463 = 2644.6281
@@ -132,20 +133,20 @@ check('cap below starting pay: no cut, no raises', sal({ S: 1000, g: 0.10, cap: 
 check('cap ignored without a raise', sal({ S: 1000, g: 0, cap: 500 }, 0.10, 3), 2486.8520);
 // Invest 50% at 20%, d 10%, n 2, flat 1000:
 //   kept 500/1.1 + 500/1.21 = 867.7686; invested 500·(1.2 + 1)/1.21 = 909.0909 (year-2 pay grows 0 years)
-const split = C.salaryPV({ S: 1000, p: 0.5, gi: 0.20 }, 0.10, 2);
+const split = C.streamPV({ S: 1000, p: 0.5, gi: 0.20 }, 0.10, 2);
 check('salary kept share', split.kept, 867.7686);
 check('salary invested share', split.invested, 909.0909);
 // Timing: pay invested at the end of the year earns nothing that year (n = 1 → no growth at all)
-check('invested pay earns nothing in its own year', C.salaryPV({ S: 1000, p: 1, gi: 0.50 }, 0, 1).invested, 1000);
+check('invested pay earns nothing in its own year', C.streamPV({ S: 1000, p: 1, gi: 0.50 }, 0, 1).invested, 1000);
 // Investing at the discount rate is PV-neutral: same as keeping it (annuity 2486.8520)
 check('investing at d = keeping', sal({ S: 1000, p: 1, gi: 0.10 }, 0.10, 3), 2486.8520);
 // Indefinite: perpetuity S/d split by share; no NaN at p = 0 or 1; unbounded at d = 0
-const indefSal = C.salaryPV({ S: 1000, p: 0.25, gi: 0.30, g: 0.2, cap: 5 }, 0.10, Infinity);
+const indefSal = C.streamPV({ S: 1000, p: 0.25, gi: 0.30, g: 0.2, cap: 5 }, 0.10, Infinity);
 check('indefinite kept 75% of 10,000', indefSal.kept, 7500);
 check('indefinite invested 25% of 10,000', indefSal.invested, 2500);
-check('indefinite p=0 invested is 0', C.salaryPV({ S: 1000, p: 0 }, 0.10, Infinity).invested, 0);
-check('indefinite p=1 kept is 0', C.salaryPV({ S: 1000, p: 1 }, 0.10, Infinity).kept, 0);
-check('indefinite at d=0 unbounded', C.salaryPV({ S: 1000 }, 0, Infinity).kept, Infinity);
+check('indefinite p=0 invested is 0', C.streamPV({ S: 1000, p: 0 }, 0.10, Infinity).invested, 0);
+check('indefinite p=1 kept is 0', C.streamPV({ S: 1000, p: 1 }, 0.10, Infinity).kept, 0);
+check('indefinite at d=0 unbounded', C.streamPV({ S: 1000 }, 0, Infinity).kept, Infinity);
 // Through opportunityBreakdown: raise is a percent field; indefinite ignores raise/cap/invest growth
 const salSettings = { discountRate: 10, sp500Rate: 20, loanRate: 5, defaultYears: 2 };
 const salOpp = (salary, extra = {}) => ({
@@ -220,6 +221,46 @@ check('cash flows: payout + growth = 1000·1.2²', cfPay.reduce((a, r) =>
   a + (r.income.initialPayout || 0) + (r.income.initialPayoutGrowth || 0), 0), 1440);
 check('cash flows: kept initial payout has no growth', cf.reduce((a, r) => a + (r.income.initialPayoutGrowth || 0), 0), 0);
 check('cash flows: indefinite → none', C.yearlyCashFlows({ ...cfOpp, yearsMode: 'indefinite' }, cfSettings) === null ? 1 : 0, 1);
+
+// Yearly return works like salary: % or $ increase, cap, and investing part of each year's amount.
+// d = 10%, S&P 20%
+const retSettings = { discountRate: 10, sp500Rate: 20, loanRate: 5, defaultYears: 3 };
+const retOpp = (yearlyReturn, years = 3, extra = {}) => ({
+  yearsMode: 'custom', years, payout: 0, initial: { amount: 0 }, loan: { amount: 0 },
+  salary: { amount: 0 }, yearlyReturn, ...extra });
+const ret = (yearlyReturn, years, extra) => C.opportunityBreakdown(retOpp(yearlyReturn, years, extra), retSettings);
+// Fixed +$100/yr: 1000, 1100, 1200 → 909.0909 + 909.0909 + 901.5778
+check('return fixed +$100/yr', ret({ amount: 1000, raiseMode: 'fixed', raiseAmount: 100 }).yearlyReturn, 2719.7596);
+// +10%/yr capped at 1,100: 1000, 1100, 1100 → 909.0909 + 909.0909 + 826.4463
+check('return +10%/yr, cap 1,100', ret({ amount: 1000, raise: 10, cap: 1100 }).yearlyReturn, 2644.6281);
+check('return cap ignored without an increase', ret({ amount: 1000, raise: 0, cap: 500 }).yearlyReturn, 2486.8520);
+// Invest 50% at S&P 20%, n 2, flat 1000: kept 500/1.1 + 500/1.21; invested 500·(1.2 + 1)/1.21
+const retSplit = ret({ amount: 1000, raise: 0, invest: true, investPct: 50, investRate: { mode: 'sp500' } }, 2);
+check('return kept share', retSplit.yearlyReturn, 867.7686);
+check('return invested share', retSplit.yearlyReturnInvested, 909.0909);
+check('return invest off ignores investPct', ret({ amount: 1000, invest: false, investPct: 50 }, 2).yearlyReturnInvested, 0);
+// Indefinite: constant perpetuity 1000 / 10% = 10,000 split 60/40, increase and cap ignored
+const retIndef = ret({ amount: 1000, raise: 15, cap: 1200, invest: true, investPct: 40, investRate: { mode: 'sp500' } },
+  3, { yearsMode: 'indefinite' });
+check('indefinite return kept 60% of 10,000', retIndef.yearlyReturn, 6000);
+check('indefinite return invested 40% of 10,000', retIndef.yearlyReturnInvested, 4000);
+// Saved before this change: a growth-rate selector. Custom 5%, n 2: 100/1.1 + 105/1.21
+const legacyReturn = retOpp({ amount: 100, rate: { mode: 'custom', custom: 5 } }, 2);
+check('old yearly return growth rate still counts', C.opportunityPV(legacyReturn, retSettings), 177.6860);
+const upgraded = Models.upgradeOpportunity(structuredClone(legacyReturn), retSettings);
+check('upgrade turns it into a 5% yearly increase', upgraded.yearlyReturn.raise, 5);
+check('…with the same present value', C.opportunityPV(upgraded, retSettings), 177.6860);
+const upgradedSP = Models.upgradeOpportunity(retOpp({ amount: 100, rate: { mode: 'sp500' } }), retSettings);
+check('upgrade: linked S&P growth becomes its current value', upgradedSP.yearlyReturn.raise, 20);
+check('upgrade fills the new fields', upgradedSP.yearlyReturn.investPct + (upgradedSP.yearlyReturn.invest ? 1 : 0)
+  + (upgradedSP.yearlyReturn.rate ? 1 : 0), 100);
+// Cash flows: 1000/yr, 50% invested at S&P 20%, n 2
+const cfRet = C.yearlyCashFlows(retOpp({ amount: 1000, raise: 0, invest: true, investPct: 50,
+  investRate: { mode: 'sp500' } }, 2), retSettings);
+check('cash flows: year 1 return kept 500', cfRet[0].income.yearlyReturn, 500);
+check('cash flows: year 1 return invested 500', cfRet[0].income.yearlyReturnInvested, 500);
+check('cash flows: year 1 no growth on returns', cfRet[0].income.yearlyReturnGrowth ?? 0, 0);
+check('cash flows: year 2 invested returns growth 100', cfRet[1].income.yearlyReturnGrowth, 100);
 
 const sg = { opportunities: [{ ...opp, individual: 'Ann' }, { ...opp, individual: '' }] };
 const totals = C.subGroupTotals(sg, settings);

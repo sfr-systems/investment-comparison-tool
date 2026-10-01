@@ -14,7 +14,7 @@ export class SampleProject {
       yearsMode: 'custom',
       years: 2,
       initial: { amount: 1000, rate: Models.rate('sp500') },
-      salary: { ...Models.salary(), amount: 1000, raise: 3 },
+      salary: { ...Models.yearlyStream(), amount: 1000, raise: 3 },
     });
 
     const mba = Models.opportunity('MBA program');
@@ -23,7 +23,7 @@ export class SampleProject {
       risk: 'high',
       yearsMode: 'custom',
       years: 5,
-      salary: { ...Models.salary(), amount: 40000 },
+      salary: { ...Models.yearlyStream(), amount: 40000 },
       loan: { amount: 60000, rate: Models.rate('loan') },
     });
 

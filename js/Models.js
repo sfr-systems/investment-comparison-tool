@@ -36,11 +36,12 @@ export class Models {
   }
 
   /**
-   * Yearly salary: raiseMode picks a yearly % increase (raise) or a fixed $ increase
-   * (raiseAmount); cap is an optional maximum (null = none);
-   * when `invest` is on, investPct % of each year's pay is invested at year end at investRate.
+   * An amount received at the end of every year (yearly return, yearly salary): raiseMode picks a
+   * yearly % increase (raise) or a fixed $ increase (raiseAmount); cap is an optional maximum
+   * (null = none); when `invest` is on, investPct % of each year's amount is invested at year end
+   * at investRate.
    */
-  static salary() {
+  static yearlyStream() {
     return {
       amount: 0, raiseMode: 'percent', raise: 0, raiseAmount: 0, cap: null,
       invest: false, investPct: 100, investRate: Models.rate('sp500'),
@@ -56,24 +57,28 @@ export class Models {
   static upgradeOpportunity(opp, settings = {}) {
     if (opp.title === 'New Opportunity') opp.title = Models.DEFAULT_OPPORTUNITY_TITLE; // the old default
     opp.initialPayout ??= Models.initialPayout();
-    const sal = (opp.salary ??= Models.salary());
-    if (sal.raise == null) {
-      // Older salaries had a growth-rate selector; keep its current value as the yearly increase.
-      const r = sal.rate ?? {};
-      sal.raise = r.mode === 'custom' ? Number(r.custom) || 0
-        : r.mode === 'sp500' ? Number(settings.sp500Rate) || 0
-          : r.mode === 'loan' ? Number(settings.loanRate) || 0 : 0;
-      delete sal.rate;
-    }
-    sal.raiseMode ??= 'percent';
-    sal.raiseAmount ??= 0;
-    sal.cap ??= null;
-    sal.invest ??= false;
-    sal.investPct ??= 100;
-    sal.investRate ??= Models.rate('sp500');
+    opp.yearlyReturn = Models.upgradeStream(opp.yearlyReturn, settings);
+    opp.salary = Models.upgradeStream(opp.salary, settings);
     opp.risk ??= 'neutral';
     opp.yearsMode ??= 'custom'; // saved before default timespans existed: keep their years
     return opp;
+  }
+
+  /**
+   * Fill a yearly stream's newer fields. Older yearly returns and salaries had a growth-rate selector
+   * instead of a yearly increase; its current value becomes the % increase.
+   */
+  static upgradeStream(stream, settings = {}) {
+    const s = stream ?? Models.yearlyStream();
+    if (s.raise == null) {
+      const r = s.rate ?? {};
+      const linked = { sp500: settings.sp500Rate, loan: settings.loanRate, discount: settings.discountRate };
+      s.raise = Number(r.mode === 'custom' ? r.custom : linked[r.mode]) || 0;
+      delete s.rate;
+    }
+    const defaults = Models.yearlyStream();
+    for (const key of Object.keys(defaults)) s[key] ??= defaults[key];
+    return s;
   }
 
   /**
@@ -144,8 +149,8 @@ export class Models {
       years: Models.DEFAULT_YEARS,
       initial: { amount: 0, rate: Models.rate('sp500') },
       initialPayout: Models.initialPayout(),
-      yearlyReturn: { amount: 0, rate: Models.rate('none') },
-      salary: Models.salary(),
+      yearlyReturn: Models.yearlyStream(),
+      salary: Models.yearlyStream(),
       payout: 0,
       loan: { amount: 0, rate: Models.rate('loan') },
     };

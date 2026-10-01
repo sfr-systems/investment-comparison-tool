@@ -6,17 +6,20 @@ const MAX_YEARS = 20;
 
 /**
  * Stack order, bottom to top, with each source's CSS color token. Keys match Calculator.yearlyCashFlows.
- * Growth on an invested amount shares that amount's color, striped (see fill).
+ * Growth on an invested amount shares that amount's color, striped (see fill). The order keeps
+ * colors that colorblind readers could confuse (e.g. red and orange) from touching in a stack.
  */
 const INCOME = [
   { key: 'salary', label: 'Salary', color: '--cf-salary' },
   { key: 'salaryInvested', label: 'Salary invested', color: '--cf-salary-invested' },
   { key: 'salaryGrowth', label: 'Invested salary growth', color: '--cf-salary-invested', striped: true },
   { key: 'yearlyReturn', label: 'Yearly return', color: '--cf-return' },
-  { key: 'initial', label: 'Investment value', color: '--cf-investment' },
+  { key: 'yearlyReturnInvested', label: 'Returns invested', color: '--cf-return-invested' },
+  { key: 'yearlyReturnGrowth', label: 'Invested returns growth', color: '--cf-return-invested', striped: true },
+  { key: 'payout', label: 'Final payout', color: '--cf-final-payout' },
   { key: 'initialPayout', label: 'Initial payout', color: '--cf-initial-payout' },
   { key: 'initialPayoutGrowth', label: 'Initial payout growth', color: '--cf-initial-payout', striped: true },
-  { key: 'payout', label: 'Final payout', color: '--cf-final-payout' },
+  { key: 'initial', label: 'Investment value', color: '--cf-investment' },
 ];
 /** Deductions, drawn as positive amounts in their own bar. Only loan repayments are charted. */
 const COSTS = [
