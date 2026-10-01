@@ -826,6 +826,7 @@ input.strategy-title {
 .header-total { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
 .strategy-header .header-total { font-size: 20px; letter-spacing: -0.015em; }
 .header-total.negative { color: var(--negative); }
+.strategy-actions { display: flex; align-items: center; gap: 2px; }
 .strategy-body {
   display: flex;
   flex-direction: column;

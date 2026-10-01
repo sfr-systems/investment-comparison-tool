@@ -27,7 +27,7 @@ Project → Strategy[] → SubGroup[] → Opportunity[]
   - "Show [Charts] [Yearly tables]" includes/excludes every income source's chart and yearly table.
 
 ## Strategy
-Editable title; add/delete sub groups. Reorder with a swap button centered in the gap between each pair of strategies (trades the two; both flash). Clicking anywhere on the header (except the title input and buttons) collapses/expands it.
+Editable title; add/delete sub groups. A Duplicate button beside Delete (header, top right) inserts a copy just below with fresh ids, titled "Title (copy)" ("(copy 2)"… if taken; `Models.cloneStrategy`), then glides to it and flashes it. Reorder with a swap button centered in the gap between each pair of strategies (trades the two; both flash). Clicking anywhere on the header (except the title input and buttons) collapses/expands it.
 
 ## Sub group
 Editable title; add/delete opportunities.

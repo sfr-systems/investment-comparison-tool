@@ -104,14 +104,25 @@ export class Models {
     copy.name = name;
     copy.createdAt = copy.updatedAt = Date.now();
     delete copy.sample; // a copy is the user's own project, synced like any other
-    for (const st of copy.strategies) {
-      st.id = Models.id();
-      for (const sg of st.subGroups) {
-        sg.id = Models.id();
-        for (const opp of sg.opportunities) opp.id = Models.id();
-      }
-    }
+    copy.strategies.forEach(Models.freshIds);
     return copy;
+  }
+
+  /** Deep copy of a strategy titled `title`, with fresh ids for it and everything in it. */
+  static cloneStrategy(strategy, title) {
+    const copy = Models.freshIds(structuredClone(strategy));
+    copy.title = title;
+    return copy;
+  }
+
+  /** Give a (copied) strategy, its sub groups and their opportunities new ids. */
+  static freshIds(strategy) {
+    strategy.id = Models.id();
+    for (const sg of strategy.subGroups) {
+      sg.id = Models.id();
+      for (const opp of sg.opportunities) opp.id = Models.id();
+    }
+    return strategy;
   }
 
   /** "Name (copy)", or "Name (copy 2)", "(copy 3)"… if taken. */

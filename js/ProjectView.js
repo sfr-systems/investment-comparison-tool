@@ -174,6 +174,7 @@ export class ProjectView {
     this.children = project.strategies.map((strategy, i) => new StrategyView(strategy, ctx, {
       position: i + 1,
       onSwapUp: i > 0 ? () => this.swapStrategies(i) : null,
+      onDuplicate: () => this.duplicateStrategy(i),
       onDelete: () => {
         if (!confirmDelete('strategy', strategy.title)) return;
         project.strategies = project.strategies.filter((s) => s !== strategy);
@@ -196,6 +197,23 @@ export class ProjectView {
     const copy = Models.cloneProject(this.project, Models.copyName(this.project.name, names));
     await this.storage.saveProject(copy);
     location.hash = `#/project/${encodeURIComponent(copy.id)}`;
+  }
+
+  /**
+   * Add a copy of the strategy at `index` ("Title (copy)") just below it, then glide to the copy,
+   * flash it, and focus its copy button so pressing it again makes another.
+   */
+  duplicateStrategy(index) {
+    const list = this.project.strategies;
+    const original = list[index];
+    const title = Models.copyName(original.title.trim() || 'Untitled strategy', list.map((s) => s.title));
+    list.splice(index + 1, 0, Models.cloneStrategy(original, title));
+    this.save();
+    this.renderStrategies();
+    const copy = this.children[index + 1];
+    this.rail.scrollToStrategy(index + 1);
+    copy.flash();
+    copy.duplicateBtn.focus({ preventScroll: true });
   }
 
   /** Swap the strategy at `index` with the one above it; both flash, and focus stays on the swap button. */

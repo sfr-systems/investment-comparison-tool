@@ -7,11 +7,15 @@ import { Risk } from './Risk.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
-  /** onSwapUp: swap this strategy with the one above it (given for every strategy but the first). */
-  constructor(strategy, ctx, { position, onSwapUp, onDelete }) {
+  /**
+   * onSwapUp: swap this strategy with the one above it (given for every strategy but the first).
+   * onDuplicate: add a copy of this strategy just below it.
+   */
+  constructor(strategy, ctx, { position, onSwapUp, onDuplicate, onDelete }) {
     this.strategy = strategy;
     this.position = position; // 1-based order in the project; drives the beacon numeral/color
     this.onSwapUp = onSwapUp;
+    this.onDuplicate = onDuplicate;
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.children = [];
@@ -84,10 +88,15 @@ export class StrategyView {
           el('span', { class: 'eyebrow' }, 'Overall risk'),
           this.riskEl = Risk.indicator()),
         el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
-        el('button', {
-          class: 'icon-btn danger', title: 'Delete strategy', 'aria-label': 'Delete strategy',
-          onclick: () => this.onDelete(),
-        }, icon('trash'))),
+        el('span', { class: 'strategy-actions' },
+          this.duplicateBtn = el('button', {
+            class: 'icon-btn', title: 'Duplicate strategy', 'aria-label': 'Duplicate strategy',
+            onclick: () => this.onDuplicate(),
+          }, icon('copy')),
+          el('button', {
+            class: 'icon-btn danger', title: 'Delete strategy', 'aria-label': 'Delete strategy',
+            onclick: () => this.onDelete(),
+          }, icon('trash')))),
       body);
 
     // The badge straddles the strategy's top border, so it lives on an outer wrapper
@@ -116,7 +125,7 @@ export class StrategyView {
     return this.swapBtn;
   }
 
-  /** Brief highlight after the strategy is moved. */
+  /** Brief highlight after the strategy is moved or added as a copy. */
   flash() {
     this.wrapper.classList.remove('just-moved');
     void this.wrapper.offsetWidth; // restart the animation

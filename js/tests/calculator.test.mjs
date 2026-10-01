@@ -267,5 +267,16 @@ const totals = C.subGroupTotals(sg, settings);
 check('sub group total', totals.total, 2 * (-92.9705 + 1886.6213 - 1000));
 console.log('individuals:', totals.byIndividual.map(([n]) => n).join(', '));
 
+// Duplicating a strategy: deep copy with fresh ids, same present value, independent of the original
+const strat = { id: 's1', title: 'Plan A', collapsed: false, subGroups: [
+  { id: 'g1', title: 'Group', opportunities: [{ ...opp, id: 'o1' }, { ...opp, id: 'o2' }] }] };
+const dup = Models.cloneStrategy(strat, Models.copyName(strat.title, ['Plan A', 'Plan A (copy)']));
+check('duplicate: titled "(copy 2)" when "(copy)" is taken', dup.title === 'Plan A (copy 2)' ? 1 : 0, 1);
+const ids = (st) => [st.id, ...st.subGroups.flatMap((g) => [g.id, ...g.opportunities.map((o) => o.id)])];
+check('duplicate: every id is new', ids(dup).filter((id) => ids(strat).includes(id)).length, 0);
+check('duplicate: same total PV', C.strategyTotal(dup, settings), C.strategyTotal(strat, settings));
+dup.subGroups[0].opportunities[0].salary.amount = 0;
+check('duplicate: editing the copy leaves the original alone', strat.subGroups[0].opportunities[0].salary.amount, 1000);
+
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log('\nAll passed');
