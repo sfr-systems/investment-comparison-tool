@@ -19,7 +19,8 @@ const STREAMS = {
     noteHeading: 'How invested returns grow. ',
     note: 'Invested returns go in at the end of each year, so they earn nothing in the year they were received. '
       + 'They start growing the following year and compound every year after that; the balance is '
-      + 'counted at its value at the end of the timespan.',
+      + 'counted at its value at the end of the timespan. With taxes included, the share invested is of what’s '
+      + 'left after that year’s taxes on the returns.',
   },
   salary: {
     amount: 'Yearly salary',
@@ -31,7 +32,8 @@ const STREAMS = {
     noteHeading: 'How invested salary grows. ',
     note: 'Invested salary goes in at the end of each year, so it earns nothing in the year it was earned. '
       + 'It starts growing the following year and compounds every year after that; the balance is '
-      + 'counted at its value at the end of the timespan.',
+      + 'counted at its value at the end of the timespan. With taxes included, the share invested is of what’s '
+      + 'left after that year’s taxes on the salary.',
   },
 };
 
@@ -331,8 +333,8 @@ export class OpportunityView {
       el('div', { class: 'field payout-rate' },
         el('span', { class: 'field-label' }, 'Growth rate'),
         selector.render()),
-      el('label', { class: 'checkbox' }, checkbox,
-        el('span', {}, 'Invest for the remainder of the timespan')));
+      el('label', { class: 'checkbox', title: 'With taxes included, the tax on the payout is paid first and the rest is invested' },
+        checkbox, el('span', {}, 'Invest for the remainder of the timespan')));
     sync();
     return root;
   }

@@ -72,11 +72,27 @@ check('gains: federal tax in the cash-out year', gt[1].federal, 19187.5);
 check('gains: nothing taxed at the start', gt[0].federal + gt[0].payroll + gt[0].state, 0);
 check('gains: PV at d = 0', C.opportunityPV(growth, settings('TX', { discountRate: 0 })), -100000 + 200000 + 60000 - 23777.5);
 
-// Invested salary: 100,000/yr, 50% invested at S&P 20%, n = 2 → year-2 gains 10,000 at 15%
+// Invested salary: 100,000/yr, 50% of what's left after its taxes (13,170 + 7,650) invested at S&P 20%, n = 2
+//   → 39,590 a year invested; year-2 gains 7,918 at 15%
 const invested = opp({ salary: { amount: 100000, raise: 0, invest: true, investPct: 50, investRate: { mode: 'sp500' } } });
 const it = C.yearlyTaxes(C.baseCashFlows(invested, settings('TX'), 2), settings('TX'));
 check('invested salary: year 1 federal (all salary taxed)', it[1].federal, 13170);
-check('invested salary: year 2 federal + 15% of 10,000 gains', it[2].federal, 14670);
+check('invested salary: year 2 federal + 15% of 7,918 gains', it[2].federal, 13170 + 1187.7);
+check('invested salary: half of the after-tax salary invested',
+  C.yearlyCashFlows(invested, settings('TX'))[0].income.salaryInvested, 0.5 * (100000 - 20820));
+const kept = C.opportunityBreakdown(invested, settings('TX'));
+check('invested salary: kept = salary − invested (d = 10%)', kept.salary, (100000 - 39590) / 1.1 + (100000 - 39590) / 1.21);
+check('invested salary: taxes off → half of the gross', C.yearlyCashFlows(invested, { ...settings('TX'), taxes: { enabled: false } })[0]
+  .income.salaryInvested, 50000);
+// Salary + return: income taxes split by amount, FICA all the salary's. 60,000 + 40,000 in Texas: federal 13,170
+const both = C.streamTaxes(opp({ salary: { amount: 60000 }, yearlyReturn: { amount: 40000 } }), settings('TX'), 2);
+check('stream taxes: salary share + FICA', both.salary(1), 13170 * 0.6 + 4590);
+check('stream taxes: return share', both.yearlyReturn(1), 13170 * 0.4);
+// Indefinite: invested shares grow at d, so investing after taxes only moves value between kept and invested
+const indef = { ...invested, yearsMode: 'indefinite' };
+const ib = C.opportunityBreakdown(indef, settings('TX'));
+check('indefinite: invested share is of the after-tax salary', ib.salaryInvested, 0.5 * 79180 / 0.1);
+check('indefinite: total unchanged', ib.total, (100000 - 20820) / 0.1);
 check('invested salary: FICA on the full salary', it[1].payroll, 7650);
 
 // Initial payout taxed at the start (year 0): 50,000 in California
@@ -109,14 +125,94 @@ for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: f
 const ledger = C.yearlyLedger(full, settings('NY'));
 check('ledger: starts at year 0', ledger[0].year, 0);
 check('ledger: start income is the payout', ledger[0].income.initialPayout, 20000);
-check('ledger: invested at start = investment + payout', ledger[0].expenses.invested, 21000);
+check('ledger: invested at start = investment + payout after its tax', ledger[0].expenses.invested,
+  1000 + 20000 - C.startTax(full, settings('NY')));
 check('ledger: salary in full', ledger[1].income.salary, 70000);
-check('ledger: half of salary + a quarter of returns invested', ledger[1].expenses.invested, 35000 + 7500);
+const fullTax = C.streamTaxes(full, settings('NY'), 3);
+check('ledger: half of salary + a quarter of returns invested, after their taxes', ledger[1].expenses.invested,
+  0.5 * (70000 - fullTax.salary(1)) + 0.25 * (30000 - fullTax.yearlyReturn(1)));
 check('ledger: cashed out only in the last year', ledger[1].income.cashedOut + ledger[2].income.cashedOut, 0);
 check('ledger: taxes match yearlyTaxes', ledger[1].taxes.state,
   C.yearlyTaxes(C.baseCashFlows(full, settings('NY'), 3), settings('NY'))[1].state);
 check('ledger: indefinite → none', C.yearlyLedger({ ...full, yearsMode: 'indefinite' }, settings('NY')) === null ? 1 : 0, 1);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
+
+// ---- High incomes: federal
+const fed = (income, stateTax) => Tax.federalParts(income, stateTax);
+// 900,000 wages: taxable 883,900 → 58,448 to 256,225, 35% of 384,375 (134,531.25), 37% of 243,300 (90,021)
+check('federal: 900,000 wages', Tax.federal({ ordinary: 900000 }), 283000.25);
+check('federal: no AMT on wages', fed({ ordinary: 900000 }).amt, 0);
+check('federal: no NIIT on wages', fed({ ordinary: 900000 }).niit, 0);
+// The same as a yearly return is investment income: + 3.8% of (900,000 − 200,000)
+check('federal: NIIT on a 900,000 yearly return', Tax.federal({ ordinary: 900000, investment: 900000 }), 283000.25 + 26600);
+// 150,000 wages + 100,000 gains: NIIT on the 50,000 of MAGI over 200,000
+check('federal: NIIT limited by MAGI', fed({ ordinary: 150000, capitalGains: 100000 }).niit, 1900);
+// AMT: 100,000 ordinary + 1,000,000 gains. Regular 13,170 + 15% of 461,600 + 20% of 538,400 = 190,090.
+//   AMTI 1,100,000 → exemption phased out; 26% of 100,000 + the same gains tax = 202,920 → AMT 12,830
+const big = fed({ ordinary: 100000, capitalGains: 1000000 });
+check('AMT: regular tax', big.regular, 190090);
+check('AMT: exemption phased out by gains', big.amt, 12830);
+check('AMT: NIIT on gains over the 200,000 threshold', big.niit, 34200);
+// SALT: state tax is itemized when it beats the 16,100 standard deduction, capped at 40,400 → 10,000 by 606,333 of MAGI
+check('SALT: under the cap', Tax.saltDeduction(30000, 300000), 30000);
+check('SALT: cap phased down by 30% over 505,000', Tax.saltDeduction(50000, 550000), 26900);
+check('SALT: floor of 10,000', Tax.saltDeduction(50000, 700000), 10000);
+// California, 400,000 wages: state 33,353.228 (credit phased out) → federal taxable 366,646.772
+const ca400 = Tax.year({ ordinary: 400000, wages: 400000 }, 'CA');
+check('SALT: California tax at 400,000', ca400.state, 33353.228);
+check('SALT: federal with state tax itemized', ca400.federal, 58448 + 0.35 * (366646.772 - 256225));
+check('SALT: at 900,000 the standard deduction wins again', Tax.year({ ordinary: 900000 }, 'CA').federal, 283000.25);
+
+// ---- High incomes: states
+// New York recapture. 120,000: 6,039.75 + (5.9% × 112,000 − 6,039.75) × 0.247
+check('NY: recapture phasing in at 120,000', Tax.state('NY', { ordinary: 120000 }), 6039.75 + 568.25 * 0.247);
+check('NY: 300,000 → 6.85% of all taxable income', Tax.state('NY', { ordinary: 300000 }), 0.0685 * 292000);
+check('NY: 2,000,000 → 9.65% of all taxable income', Tax.state('NY', { ordinary: 2000000 }), 0.0965 * 1992000);
+check('NY: over 25,000,000 → 10.9% flat', Tax.state('NY', { ordinary: 30000000 }), 0.109 * 29992000);
+// Connecticut 900,000: no exemption; 31,250 + 6.99% of 400,000 + 250 (2% phase-out) + 3,400 recapture
+check('CT: 900,000', Tax.state('CT', { ordinary: 900000 }), 59210 + 250 + 3400);
+// Connecticut 60,000: 2,000 + 5.5% of 10,000 + 25 add-back, less a 10% personal credit
+check('CT: 60,000 with personal credit', Tax.state('CT', { ordinary: 60000 }), 2575 * 0.9);
+// Washington: 7% to 1,000,000 of taxable gains, 9.9% above
+check('WA: 9.9% over 1,000,000', Tax.state('WA', { capitalGains: 1500000 }), 70000 + 0.099 * 222000);
+check('MA: 4% surtax over 1,107,750', Tax.state('MA', { ordinary: 2000000 }), 0.05 * 1995600 + 0.04 * (1995600 - 1107750));
+// Maine 1,500,000: deduction and exemption phased out; 2% surcharge over 1,000,000
+check('ME: surcharge and phase-outs', Tax.state('ME', { ordinary: 1500000 }), 1589.2 + 2527.875 + 66863.225 + 45750);
+check('MD: 2% surtax on gains over 350,000 AGI', Tax.state('MD', { capitalGains: 500000 }) - Tax.state('MD', { ordinary: 500000 }), 10000);
+check('MN: 1% on investment income over 1,000,000', Tax.state('MN', { ordinary: 2000000, investment: 2000000 })
+  - Tax.state('MN', { ordinary: 2000000 }), 10000);
+check('MN: deduction cut to 20%', Tax.state('MN', { ordinary: 2000000 }), Tax.bracketTax(2000000 - 3060, [[0, 0.0535],
+  [33310, 0.068], [109430, 0.0785], [203150, 0.0985]]));
+// Hawaii: gains capped at 7.25% above 48,000 (where the 7.6% bracket starts): 2,539.20 + 7.25% of 946,456
+check('HI: 7.25% cap on gains', Tax.state('HI', { capitalGains: 1000000 }), 2539.2 + 0.0725 * 946456);
+// Montana: gains at 3% / 4.1%: 100,000 − 16,100 = 83,900 → 1,425 + 4.1% of 36,400
+check('MT: gains rates', Tax.state('MT', { capitalGains: 100000 }), 1425 + 1492.4);
+// Arkansas: half of gains taxed: 47,530 → 92 + 3.9% of 42,930, less the 29 credit
+check('AR: 50% of gains', Tax.state('AR', { capitalGains: 100000 }), 92 + 1674.27 - 29);
+// Alabama deducts federal income tax: 900,000 − 2,500 − 1,500 − 283,000.25 = 612,999.75
+const al = Tax.year({ ordinary: 900000 }, 'AL');
+check('AL: federal tax deducted', al.state, 110 + 0.05 * (612999.75 - 3000));
+// Missouri: 15% of federal tax (5,020) deducted at 60,000 → taxable 43,147
+check('MO: partial federal deduction', Tax.year({ ordinary: 60000 }, 'MO').state, 262.86 + 0.047 * (43147 - 9436));
+check('GA: 4.99%', Tax.state('GA', { ordinary: 100000 }), 0.0499 * 88000);
+check('UT: credit phased out', Tax.state('UT', { ordinary: 100000 }), 4500);
+check('WI: deduction phased out', Tax.state('WI', { ordinary: 200000 }), 528.85 + 1620.96 + 7809.55);
+check('CA: exemption credit phasing out (153 − 6 × 20)', Tax.state('CA', { ordinary: 300000 }),
+  Tax.bracketTax(294460, [[0, 0.01], [11079, 0.02], [26264, 0.04], [41452, 0.06], [57542, 0.08], [72724, 0.093],
+    [371479, 0.103]]) - 33);
+check('IL: no exemption over 250,000', Tax.state('IL', { ordinary: 300000 }), 14850);
+
+// ---- An invested initial payout invests what's left after its tax
+// 100,000 in Texas at 10% for 2 years, d = 0: tax 13,170 at the start, 86,830 invested → 105,064.30
+const investedPayout = opp({ initialPayout: { amount: 100000, invest: true, rate: { mode: 'custom', custom: 10 } } });
+const ip = settings('TX', { discountRate: 0 });
+check('payout: tax at the start', C.startTax(investedPayout, ip), 13170);
+check('payout: amount invested', C.payoutInvested(investedPayout, ip), 86830);
+check('payout: PV is the after-tax amount grown', C.opportunityPV(investedPayout, ip), 86830 * 1.21);
+check('payout: breakdown = tax + net grown', C.opportunityBreakdown(investedPayout, ip).initialPayout, 13170 + 86830 * 1.21);
+check('payout: growth from the net amount', C.yearlyCashFlows(investedPayout, ip)[1].income.initialPayoutGrowth, 8683);
+check('payout: start year nets to 0', C.yearlyLedger(investedPayout, ip)[0].net, 0);
+check('payout: taxes off → gross invested', C.opportunityPV(investedPayout, { ...ip, taxes: { enabled: false } }), 121000);
 
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log('\nAll passed');

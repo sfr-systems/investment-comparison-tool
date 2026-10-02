@@ -30,12 +30,15 @@ export class Calculator {
 
   /**
    * Initial payout P (one-time) received at the start (t = 0).
-   * Not invested: +P. Invested at g until year n: P(1+g)^n / (1+d)^n.
+   * Not invested: +P. Invested at g until year n: the tax owed on it at the start (`tax`, counted with
+   * the other taxes) is paid out of it first and the rest is invested: tax + (P − tax)(1+g)^n / (1+d)^n.
    */
-  static initialPayoutPV(P, invested, g, d, n) {
+  static initialPayoutPV(P, invested, g, d, n, tax = 0) {
     if (!P) return 0;
-    if (n === Infinity) return invested ? P * Calculator.growthRatioLimit(g, d) : P;
-    return invested ? (P * Math.pow(1 + g, n)) / Math.pow(1 + d, n) : P;
+    if (!invested) return P;
+    const net = Math.max(0, P - tax);
+    const ratio = n === Infinity ? Calculator.growthRatioLimit(g, d) : Math.pow(1 + g, n) / Math.pow(1 + d, n);
+    return P - net + (net ? net * ratio : 0);
   }
 
   /**
@@ -56,16 +59,18 @@ export class Calculator {
    * A yearly amount S (yearly return or salary) received at the end of each year t = 1..n, rising
    * by g (a rate) or k (a fixed dollar amount) a year until it reaches `cap` (the cap never lowers
    * the amount below S, and only applies when the increase is > 0). A negative k lowers it each
-   * year, never below 0. A share p of each year's amount is invested at the end of that year and
-   * grows at gi from the following year until year n, where it's counted:
-   * p·amount_t·(1+gi)^(n−t) / (1+d)^n. Returns { kept, invested } present values.
+   * year, never below 0. A share p of each year's amount, after that year's taxes on it (`tax(t)`,
+   * see streamTaxes; none by default), is invested at the end of that year and grows at gi from the
+   * following year until year n, where it's counted: p·(amount_t − tax_t)·(1+gi)^(n−t) / (1+d)^n; the
+   * rest is kept. Returns { kept, invested } present values (before taxes, which are counted apart).
    * Indefinite: no increase or cap and the invested share grows at d, so the total is the perpetuity S/d.
    */
-  static streamPV({ S, g = 0, k = 0, cap = null, p = 0, gi = 0 }, d, n) {
+  static streamPV({ S, g = 0, k = 0, cap = null, p = 0, gi = 0 }, d, n, tax = () => 0) {
     if (!S) return { kept: 0, invested: 0 };
     if (n === Infinity) {
       const total = Calculator.growingAnnuityPV(S, 0, d, Infinity);
-      return { kept: p >= 1 ? 0 : total * (1 - p), invested: p <= 0 ? 0 : total * p };
+      const share = p * Math.max(0, S - tax(1)) / S; // of each year's amount
+      return { kept: share >= 1 ? 0 : total * (1 - share), invested: share <= 0 ? 0 : total * share };
     }
     const ceiling = Calculator.streamCeiling({ S, g, k, cap });
     const endDiscount = Math.pow(1 + d, n);
@@ -73,8 +78,9 @@ export class Calculator {
     let invested = 0;
     for (let t = 1; t <= n; t++) {
       const amount = Calculator.streamAmount(t, { S, g, k }, ceiling);
-      kept += ((1 - p) * amount) / Math.pow(1 + d, t);
-      invested += (p * amount * Math.pow(1 + gi, n - t)) / endDiscount;
+      const put = p * Math.max(0, amount - tax(t));
+      kept += (amount - put) / Math.pow(1 + d, t);
+      invested += (put * Math.pow(1 + gi, n - t)) / endDiscount;
     }
     return { kept, invested };
   }
@@ -155,13 +161,14 @@ export class Calculator {
     const rate = (r) => Calculator.resolveRate(r, settings);
     const indefinite = n === Infinity;
     const lumpGrowth = (r) => (indefinite ? d : rate(r));
-    const stream = (group) => Calculator.streamPV(Calculator.streamInputs(group, settings, d, n), d, n);
-    const returns = stream(opp.yearlyReturn);
-    const salary = stream(opp.salary);
+    const streamTax = Calculator.streamTaxes(opp, settings, n);
+    const stream = (group, key) => Calculator.streamPV(Calculator.streamInputs(group, settings, d, n), d, n, streamTax?.[key]);
+    const returns = stream(opp.yearlyReturn, 'yearlyReturn');
+    const salary = stream(opp.salary, 'salary');
     const parts = {
       initial: Calculator.initialInvestmentPV(+opp.initial.amount || 0, lumpGrowth(opp.initial.rate), d, n),
       initialPayout: Calculator.initialPayoutPV(+opp.initialPayout?.amount || 0,
-        !!opp.initialPayout?.invest, lumpGrowth(opp.initialPayout?.rate), d, n),
+        !!opp.initialPayout?.invest, lumpGrowth(opp.initialPayout?.rate), d, n, Calculator.startTax(opp, settings)),
       yearlyReturn: returns.kept,
       yearlyReturnInvested: returns.invested,
       salary: salary.kept,
@@ -195,10 +202,10 @@ export class Calculator {
     if (!Calculator.taxesOn(settings)) return out;
     const state = settings.taxes.state;
     if (n === Infinity) {
-      const start = Tax.year({ ordinary: +opp.initialPayout?.amount || 0, wages: 0 }, state);
+      const start = Tax.year({ ordinary: +opp.initialPayout?.amount || 0 }, state);
       const R = +opp.yearlyReturn?.amount || 0;
       const S = +opp.salary?.amount || 0;
-      const yearly = Tax.year({ ordinary: R + S, wages: S }, state);
+      const yearly = Tax.year({ ordinary: R + S, wages: S, investment: R }, state);
       for (const [kind, key] of Object.entries(TAX_KEYS)) {
         const forever = !yearly[kind] ? 0 : d > 0 ? yearly[kind] / d : Infinity;
         out[key] = -(start[kind] + forever) || 0;
@@ -213,11 +220,12 @@ export class Calculator {
   }
 
   /**
-   * Each year's taxable income from pre-tax cash flows for years 0..n (baseCashFlows):
-   * { ordinary, wages, capitalGains }. Salary and yearly returns are taxed in the year they're
-   * received, invested or not; the initial payout at the start; the final payout in year n.
-   * Investments are cashed out at year n, so all capital gains fall then: the initial investment's
-   * value less what was paid in, plus all the growth on invested payout, salary and returns.
+   * Each year's taxable income from cash flows for years 0..n (baseCashFlows):
+   * { ordinary, wages, investment, capitalGains }. Salary and yearly returns are taxed in the year
+   * they're received, invested or not (yearly returns count as investment income); the initial payout
+   * at the start; the final payout in year n. Investments are cashed out at year n, so all capital
+   * gains fall then: the initial investment's value less what was paid in, plus all the growth on
+   * invested payout, salary and returns.
    */
   static taxableIncome(years) {
     const n = years.length - 1;
@@ -226,8 +234,56 @@ export class Calculator {
     return years.map((row, t) => ({
       ordinary: sumKeys(row.income, ORDINARY_KEYS),
       wages: sumKeys(row.income, ['salary', 'salaryInvested']),
+      investment: sumKeys(row.income, ['yearlyReturn', 'yearlyReturnInvested']),
       capitalGains: t === n ? gains : 0,
     }));
+  }
+
+  /**
+   * Tax owed at the start, all on the initial payout (nothing else is taxable then); 0 when taxes are
+   * off. An invested payout pays it first, so only the rest is invested (see payoutInvested).
+   */
+  static startTax(opp, settings) {
+    const P0 = +opp.initialPayout?.amount || 0;
+    if (!P0 || !Calculator.taxesOn(settings)) return 0;
+    const tax = Tax.year({ ordinary: P0 }, settings.taxes.state);
+    return tax.federal + tax.payroll + tax.state;
+  }
+
+  /**
+   * Each year's taxes on the yearly return and the salary, so that an invested share comes out of
+   * what's left after them: { yearlyReturn: (t) => tax, salary: (t) => tax }, or null when taxes are
+   * off. Year t's income taxes on its ordinary income (salary, return, and the final payout in year n;
+   * not the gains cashed out then) are split in proportion to the amounts; Social Security and
+   * Medicare are all the salary's. Indefinite: the same every year.
+   */
+  static streamTaxes(opp, settings, n) {
+    if (!Calculator.taxesOn(settings)) return null;
+    const d = (Number(settings.discountRate) || 0) / 100;
+    const [returnAt, salaryAt] = [opp.yearlyReturn, opp.salary].map((group) => {
+      const s = Calculator.streamInputs(group, settings, d, n);
+      const ceiling = Calculator.streamCeiling(s);
+      return (t) => (s.S ? Calculator.streamAmount(t, s, ceiling) : 0);
+    });
+    const payout = n === Infinity ? 0 : +opp.payout || 0;
+    const byYear = new Map();
+    const year = (t) => {
+      if (!byYear.has(t)) {
+        const [R, S] = [returnAt(t), salaryAt(t)];
+        const ordinary = R + S + (t === n ? payout : 0);
+        const tax = Tax.year({ ordinary, wages: S, investment: R }, settings.taxes.state);
+        const share = ordinary ? (tax.federal + tax.state) / ordinary : 0;
+        byYear.set(t, { yearlyReturn: share * R, salary: share * S + tax.payroll });
+      }
+      return byYear.get(t);
+    };
+    return { yearlyReturn: (t) => year(t).yearlyReturn, salary: (t) => year(t).salary };
+  }
+
+  /** Amount put into the investment at the start when the initial payout is invested: the payout less its tax. */
+  static payoutInvested(opp, settings) {
+    if (!opp.initialPayout?.invest) return 0;
+    return Math.max(0, (+opp.initialPayout.amount || 0) - Calculator.startTax(opp, settings));
   }
 
   /** Taxes owed each year, [{ federal, payroll, state }] lined up with years 0..n; null when taxes are off. */
@@ -261,7 +317,7 @@ export class Calculator {
    * where year 0 is the start (listed only when something happens then). Keys match
    * opportunityBreakdown; `initial` is the investment paid in (a cost at the start) and its
    * grown value (income at year n). Invested salary and returns are shown as they build up rather
-   * than as one balance at year n: `salaryInvested` / `yearlyReturnInvested` is the share of that
+   * than as one balance at year n: `salaryInvested` / `yearlyReturnInvested` is the share (after its taxes) of that
    * year's amount put in, and `salaryGrowth` / `yearlyReturnGrowth` the growth that year on what was
    * put in before (no growth in the year earned), so over the years they add up to the final
    * balance. An initial payout is received at the start; if it's invested, `initialPayoutGrowth` is
@@ -287,7 +343,11 @@ export class Calculator {
     return hasStart ? years : years.slice(1);
   }
 
-  /** Pre-tax, undiscounted cash flows for every year 0..n of a set timespan (see yearlyCashFlows). */
+  /**
+   * Undiscounted cash flows before taxes for every year 0..n of a set timespan (see yearlyCashFlows),
+   * except that invested payout, salary and returns are what's left of them after their taxes
+   * (payoutInvested, streamTaxes).
+   */
   static baseCashFlows(opp, settings, n) {
     const d = (Number(settings.discountRate) || 0) / 100;
     const rate = (r) => Calculator.resolveRate(r, settings);
@@ -303,14 +363,17 @@ export class Calculator {
 
     const P0 = +opp.initialPayout?.amount || 0;
     add(0, 'income', 'initialPayout', P0);
-    if (opp.initialPayout?.invest) {
+    const X = Calculator.payoutInvested(opp, settings);
+    if (X) {
       const g = rate(opp.initialPayout.rate);
-      for (let t = 1; t <= n; t++) add(t, 'income', 'initialPayoutGrowth', P0 * Math.pow(1 + g, t - 1) * g);
+      for (let t = 1; t <= n; t++) add(t, 'income', 'initialPayoutGrowth', X * Math.pow(1 + g, t - 1) * g);
     }
 
+    const streamTax = Calculator.streamTaxes(opp, settings, n);
     const streams = [['yearlyReturn', opp.yearlyReturn], ['salary', opp.salary]].map(([key, group]) => {
       const s = Calculator.streamInputs(group, settings, d, n);
-      return { key, s, ceiling: Calculator.streamCeiling(s), balance: 0 }; // balance: invested so far
+      const tax = streamTax?.[key] ?? (() => 0);
+      return { key, s, tax, ceiling: Calculator.streamCeiling(s), balance: 0 }; // balance: invested so far
     });
     const L = +opp.loan?.amount || 0;
     const A = L ? Calculator.loanPayment(L, rate(opp.loan?.rate), n) : 0;
@@ -319,10 +382,11 @@ export class Calculator {
         const { key, s } = st;
         const amount = s.S ? Calculator.streamAmount(t, s, st.ceiling) : 0;
         const growth = st.balance * s.gi;
-        add(t, 'income', key, (1 - s.p) * amount);
+        const put = s.p * Math.max(0, amount - st.tax(t));
+        add(t, 'income', key, amount - put);
         add(t, 'income', `${key}Growth`, growth);
-        add(t, 'income', `${key}Invested`, s.p * amount);
-        st.balance += growth + s.p * amount;
+        add(t, 'income', `${key}Invested`, put);
+        st.balance += growth + put;
       }
       add(t, 'costs', 'loan', -A);
     }
@@ -343,7 +407,7 @@ export class Calculator {
     if (n === Infinity) return null;
     const years = Calculator.baseCashFlows(opp, settings, n);
     const taxes = Calculator.yearlyTaxes(years, settings);
-    const payoutInvested = opp.initialPayout?.invest ? +opp.initialPayout.amount || 0 : 0;
+    const payoutInvested = Calculator.payoutInvested(opp, settings);
     // Invested payout, salary and returns: everything put in plus its growth, cashed out at year n.
     const balance = payoutInvested + years.reduce((a, row) =>
       a + sumKeys(row.income, ['salaryInvested', 'yearlyReturnInvested', ...GROWTH_KEYS]), 0);

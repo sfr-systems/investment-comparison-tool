@@ -24,7 +24,7 @@ const GROUPS = [
   },
   {
     key: 'taxes', label: 'Taxes', columns: [
-      { key: 'federal', label: 'Federal', title: 'Federal income tax' },
+      { key: 'federal', label: 'Federal', title: 'Federal income tax, including any alternative minimum tax and net investment income tax' },
       { key: 'payroll', label: 'FICA', title: 'Social Security and Medicare' },
       { key: 'state', label: 'State', title: 'State income tax' },
     ],

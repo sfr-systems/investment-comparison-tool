@@ -122,9 +122,12 @@ export class ProjectOptions {
             + 'and your state’s income tax.'),
           el('label', { class: 'field', for: 'tax-state' },
             el('span', { class: 'field-label' }, 'State of residence'), select),
-          el('p', { class: 'app-dialog-fine' }, `Uses ${TAX_YEAR} brackets for a single filer with the standard deduction. `
-            + 'Each income source is taxed as if it were the only income; investments are taxed as long-term '
-            + 'capital gains when cashed out at the end of the timespan. Local taxes aren’t included.'),
+          el('p', { class: 'app-dialog-fine' }, `Uses ${TAX_YEAR} brackets for a single filer with the standard deduction `
+            + '(or state income tax as an itemized deduction, when larger). Each income source is taxed as if it were '
+            + 'the only income; investments are taxed as long-term capital gains when cashed out at the end of the '
+            + 'timespan. Federal tax includes the alternative minimum tax and the 3.8% tax on investment income (gains '
+            + 'and yearly returns) over $200,000; state tax includes high-income surtaxes, recapture and phase-outs. '
+            + 'Local taxes aren’t included.'),
           el('div', { class: 'app-dialog-actions' },
             el('button', { type: 'button', class: 'btn', onclick: () => dialog.close() }, 'Cancel'),
             confirm)));
