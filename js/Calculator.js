@@ -1,7 +1,7 @@
 import { Tax } from './Tax.js';
 
 /** Tax kinds (Tax.year) → their breakdown / cash-flow keys. */
-const TAX_KEYS = { federal: 'federalTax', payroll: 'payrollTax', state: 'stateTax' };
+const TAX_KEYS = { federal: 'federalTax', gains: 'capitalGainsTax', payroll: 'payrollTax', state: 'stateTax' };
 /** Cash-flow keys taxed as ordinary income, and growth taxed as capital gains when cashed out at year n. */
 const ORDINARY_KEYS = ['salary', 'salaryInvested', 'yearlyReturn', 'yearlyReturnInvested', 'initialPayout', 'payout'];
 const GROWTH_KEYS = ['salaryGrowth', 'yearlyReturnGrowth', 'initialPayoutGrowth'];
@@ -152,8 +152,8 @@ export class Calculator {
    * On an indefinite timespan the entered growth rates are set aside so the PV stays finite:
    * one-time amounts (initial investment, invested initial payout) grow at the discount rate,
    * holding their value, and yearly return / salary don't grow (constant perpetuity C / d) while
-   * their invested shares grow at the discount rate. With taxes on, `federalTax`, `payrollTax` and
-   * `stateTax` (negative) are part of the total (see taxPV); they're 0 otherwise.
+   * their invested shares grow at the discount rate. With taxes on, `federalTax`, `capitalGainsTax`,
+   * `payrollTax` and `stateTax` (negative) are part of the total (see taxPV); they're 0 otherwise.
    */
   static opportunityBreakdown(opp, settings) {
     const d = (Number(settings.discountRate) || 0) / 100;
@@ -191,14 +191,14 @@ export class Calculator {
 
   /**
    * Present value of the taxes on an opportunity, as negative amounts by kind
-   * ({ federalTax, payrollTax, stateTax }); all 0 when taxes are off. Each year's taxable income
-   * is taxed on its own (see taxableIncome), then discounted like the cash flows.
+   * ({ federalTax, capitalGainsTax, payrollTax, stateTax }, see Tax.year); all 0 when taxes are off.
+   * Each year's taxable income is taxed on its own (see taxableIncome), then discounted like the cash flows.
    * Indefinite: the initial payout is taxed at the start, and yearly return + salary (held
    * constant) are taxed the same every year, a perpetuity tax / d; investments are never cashed
    * out, so there are no capital gains.
    */
   static taxPV(opp, settings, d, n) {
-    const out = { federalTax: 0, payrollTax: 0, stateTax: 0 };
+    const out = { federalTax: 0, capitalGainsTax: 0, payrollTax: 0, stateTax: 0 };
     if (!Calculator.taxesOn(settings)) return out;
     const state = settings.taxes.state;
     if (n === Infinity) {
@@ -286,7 +286,7 @@ export class Calculator {
     return Math.max(0, (+opp.initialPayout.amount || 0) - Calculator.startTax(opp, settings));
   }
 
-  /** Taxes owed each year, [{ federal, payroll, state }] lined up with years 0..n; null when taxes are off. */
+  /** Taxes owed each year, [{ federal, gains, payroll, state }] (Tax.year) lined up with years 0..n; null when taxes are off. */
   static yearlyTaxes(years, settings) {
     if (!Calculator.taxesOn(settings)) return null;
     return Calculator.taxableIncome(years).map((income) => Tax.year(income, settings.taxes.state));
@@ -321,9 +321,9 @@ export class Calculator {
    * year's amount put in, and `salaryGrowth` / `yearlyReturnGrowth` the growth that year on what was
    * put in before (no growth in the year earned), so over the years they add up to the final
    * balance. An initial payout is received at the start; if it's invested, `initialPayoutGrowth` is
-   * what it earns each year after that. With taxes on, each year's `federalTax`, `payrollTax` and
-   * `stateTax` are costs too. Amounts are as received or accrued that year; with `discounted` each
-   * is divided by (1+d)^t.
+   * what it earns each year after that. With taxes on, each year's `federalTax`, `capitalGainsTax`
+   * (year n), `payrollTax` and `stateTax` are costs too. Amounts are as received or accrued that year;
+   * with `discounted` each is divided by (1+d)^t.
    */
   static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
     const n = Calculator.resolveYears(opp, settings);
@@ -398,8 +398,8 @@ export class Calculator {
    * Year-by-year statement for the yearly table (null when indefinite), in cash terms: for years
    * 0..n (the start only when something happens then), what's received (`income`: salary and
    * yearly return in full, payouts, and every investment cashed out at year n), what's paid out
-   * (`expenses`: amounts put into investments, loan repayments), `taxes` ({ federal, payroll,
-   * state }, all 0 when taxes are off) and the `net` left. All amounts are positive except `net`.
+   * (`expenses`: amounts put into investments, loan repayments), `taxes` ({ federal, gains, payroll,
+   * state }, see Tax.year; all 0 when taxes are off) and the `net` left. All amounts are positive except `net`.
    * Discounting each year's net by (1+d)^t and adding them up gives the opportunity's PV.
    */
   static yearlyLedger(opp, settings) {
@@ -424,7 +424,7 @@ export class Calculator {
           + (year === 0 ? payoutInvested : 0),
         loan: -(costs.loan || 0),
       };
-      const tax = taxes?.[year] ?? { federal: 0, payroll: 0, state: 0 };
+      const tax = taxes?.[year] ?? { federal: 0, gains: 0, payroll: 0, state: 0 };
       const total = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
       return { year, income, expenses, taxes: tax, net: total(income) - total(expenses) - total(tax) };
     });

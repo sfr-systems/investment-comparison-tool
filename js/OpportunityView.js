@@ -47,6 +47,7 @@ const BREAKDOWN_LABELS = {
   salary: 'Salary',
   salaryInvested: 'Invested salary',
   federalTax: 'Federal income tax',
+  capitalGainsTax: 'Capital gains tax',
   payrollTax: 'Social Security & Medicare',
   stateTax: 'State tax',
 };

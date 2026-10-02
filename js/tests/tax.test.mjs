@@ -64,20 +64,51 @@ check('PV: indefinite at 0% discount stays +∞', C.opportunityPV({ ...salary60k
 
 // Capital gains when investments are cashed out: 100,000 invested at 100% for 1 year + 60,000 salary, d = 0
 //   year 1: ordinary 60,000, gains 100,000 → taxable 143,900, ordinary part 43,900
-//   federal 5,020 + 0% on 5,550 + 15% on 94,450 (14,167.50) = 19,187.50; FICA 4,590
+//   federal 5,020 on the salary; capital gains tax 0% on 5,550 + 15% on 94,450 = 14,167.50; FICA 4,590
 const growth = opp({ years: 1, initial: { amount: 100000, rate: { mode: 'custom', custom: 100 } },
   salary: { amount: 60000, raise: 0 } });
 const gt = C.yearlyTaxes(C.baseCashFlows(growth, settings('TX', { discountRate: 0 }), 1), settings('TX'));
-check('gains: federal tax in the cash-out year', gt[1].federal, 19187.5);
-check('gains: nothing taxed at the start', gt[0].federal + gt[0].payroll + gt[0].state, 0);
+check('gains: federal income tax in the cash-out year (salary only)', gt[1].federal, 5020);
+check('gains: capital gains tax at 0% / 15%', gt[1].gains, 14167.5);
+check('gains: nothing taxed at the start', gt[0].federal + gt[0].gains + gt[0].payroll + gt[0].state, 0);
 check('gains: PV at d = 0', C.opportunityPV(growth, settings('TX', { discountRate: 0 })), -100000 + 200000 + 60000 - 23777.5);
+const gb = C.opportunityBreakdown(growth, settings('TX'));
+check('gains: capital gains tax PV (d = 10%)', gb.capitalGainsTax, -14167.5 / 1.1);
+check('gains: federal income tax PV leaves the gains out', gb.federalTax, -5020 / 1.1);
+check('gains: chart cost in the cash-out year', C.yearlyCashFlows(growth, settings('TX')).at(-1).costs.capitalGainsTax, -14167.5);
+
+// The capital gains tax includes the 3.8% NIIT the gains bring on: a 150,000 yearly return (under the
+// 200,000 threshold alone) + 100,000 gains → 15% of 100,000 + 3.8% of 50,000. The return's own tax:
+//   taxable 133,900 → 1,240 + 4,560 + 22% of 55,300 (12,166) + 24% of 28,200 (6,768) = 24,734
+const niitYear = Tax.year({ ordinary: 150000, investment: 150000, capitalGains: 100000 }, 'TX');
+check('split: federal income tax on the return alone', niitYear.federal, 24734);
+check('split: capital gains tax with the NIIT it triggers', niitYear.gains, 15000 + 1900);
+// With state tax itemized (California), the two still add up to the whole federal tax
+const caGains = { ordinary: 400000, wages: 400000, capitalGains: 300000 };
+const caYear = Tax.year(caGains, 'CA');
+check('split: federal + capital gains = all federal tax', caYear.federal + caYear.gains, Tax.federal(caGains, caYear.state));
+check('split: federal is the year without the gains', caYear.federal, Tax.year({ ...caGains, capitalGains: 0 }, 'CA').federal);
+check('split: state tax includes the gains', caYear.state, Tax.state('CA', caGains));
+check('split: no gains → no capital gains tax', Tax.year({ ordinary: 60000 }, 'CA').gains, 0);
+
+// 15 years of a 20,000 yearly return in Texas, all of it invested at 12% after its 390 of tax:
+//   gains = 19,610 × (1.12^15 − 1) / 0.12 − 15 × 19,610 (about 436,905), cashed out in year 15 on top of
+//   that year's return: 0% up to 49,450 of taxable income (45,550 of gains), then 15%; NIIT on MAGI over 200,000
+const ret15 = opp({ years: 15, yearlyReturn: { amount: 20000, raise: 0, invest: true, investPct: 100,
+  investRate: { mode: 'custom', custom: 12 } } });
+const G15 = 19610 * (1.12 ** 15 - 1) / 0.12 - 15 * 19610;
+const r15 = C.yearlyTaxes(C.baseCashFlows(ret15, settings('TX'), 15), settings('TX'));
+check('15 years: federal income tax on the year-15 return alone', r15[15].federal, 390);
+check('15 years: capital gains tax at long-term rates + NIIT', r15[15].gains, 0.15 * (G15 - 45550) + 0.038 * (G15 - 180000));
+check('15 years: no capital gains tax before the cash-out', r15.slice(0, 15).reduce((a, y) => a + y.gains, 0), 0);
 
 // Invested salary: 100,000/yr, 50% of what's left after its taxes (13,170 + 7,650) invested at S&P 20%, n = 2
 //   → 39,590 a year invested; year-2 gains 7,918 at 15%
 const invested = opp({ salary: { amount: 100000, raise: 0, invest: true, investPct: 50, investRate: { mode: 'sp500' } } });
 const it = C.yearlyTaxes(C.baseCashFlows(invested, settings('TX'), 2), settings('TX'));
 check('invested salary: year 1 federal (all salary taxed)', it[1].federal, 13170);
-check('invested salary: year 2 federal + 15% of 7,918 gains', it[2].federal, 13170 + 1187.7);
+check('invested salary: year 2 federal income tax unchanged', it[2].federal, 13170);
+check('invested salary: year 2 capital gains tax, 15% of 7,918', it[2].gains, 1187.7);
 check('invested salary: half of the after-tax salary invested',
   C.yearlyCashFlows(invested, settings('TX'))[0].income.salaryInvested, 0.5 * (100000 - 20820));
 const kept = C.opportunityBreakdown(invested, settings('TX'));
@@ -93,6 +124,7 @@ const indef = { ...invested, yearsMode: 'indefinite' };
 const ib = C.opportunityBreakdown(indef, settings('TX'));
 check('indefinite: invested share is of the after-tax salary', ib.salaryInvested, 0.5 * 79180 / 0.1);
 check('indefinite: total unchanged', ib.total, (100000 - 20820) / 0.1);
+check('indefinite: never cashed out, so no capital gains tax', ib.capitalGainsTax, 0);
 check('invested salary: FICA on the full salary', it[1].payroll, 7650);
 
 // Initial payout taxed at the start (year 0): 50,000 in California
@@ -134,6 +166,10 @@ check('ledger: half of salary + a quarter of returns invested, after their taxes
 check('ledger: cashed out only in the last year', ledger[1].income.cashedOut + ledger[2].income.cashedOut, 0);
 check('ledger: taxes match yearlyTaxes', ledger[1].taxes.state,
   C.yearlyTaxes(C.baseCashFlows(full, settings('NY'), 3), settings('NY'))[1].state);
+check('ledger: capital gains tax only in the cash-out year', ledger[1].taxes.gains + ledger[2].taxes.gains, 0);
+check('ledger: capital gains tax in year 3', ledger[3].taxes.gains,
+  C.yearlyTaxes(C.baseCashFlows(full, settings('NY'), 3), settings('NY'))[3].gains);
+check('ledger: capital gains tax > 0 on the growth', Math.sign(ledger[3].taxes.gains), 1);
 check('ledger: indefinite → none', C.yearlyLedger({ ...full, yearsMode: 'indefinite' }, settings('NY')) === null ? 1 : 0, 1);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 

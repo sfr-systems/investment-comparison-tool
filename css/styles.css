@@ -48,7 +48,8 @@
   --cf-initial-payout: #4a3aa7;
   --cf-final-payout: #008300;
   --cf-loan: #e87ba4;
-  /* Taxes: three steps of one slate hue (validated as an ordinal ramp), stacked above loan repayments */
+  /* Taxes: three steps of one slate hue (validated as an ordinal ramp), stacked above loan repayments;
+     the capital gains tax is the federal step, striped */
   --cf-federal-tax: #424d5f;
   --cf-payroll-tax: #76808f;
   --cf-state-tax: #acb4c0;

@@ -5,7 +5,10 @@ import { STATES, TAX_YEAR } from './taxData.js';
 /** Years listed while the table is collapsed (plus the start, when there is one). */
 const COLLAPSED_YEARS = 2;
 
-/** Column groups, in order; keys match Calculator.yearlyLedger. Income and expense columns show only when used. */
+/**
+ * Column groups, in order; keys match Calculator.yearlyLedger. Income and expense columns show only when
+ * used, tax columns whenever taxes are included (capital gains only when there are some).
+ */
 const GROUPS = [
   {
     key: 'income', label: 'Income', columns: [
@@ -24,9 +27,14 @@ const GROUPS = [
   },
   {
     key: 'taxes', label: 'Taxes', columns: [
-      { key: 'federal', label: 'Federal', title: 'Federal income tax, including any alternative minimum tax and net investment income tax' },
+      { key: 'federal', label: 'Federal', title: 'Federal income tax on everything but capital gains, including any alternative minimum tax and net investment income tax' },
+      {
+        key: 'gains', label: 'Cap. gains',
+        title: 'Federal tax on the gains of investments cashed out at the end of the timespan: long-term capital gains rates '
+          + '(0, 15 or 20%), plus what else the gains add, such as the net investment income tax or alternative minimum tax',
+      },
       { key: 'payroll', label: 'FICA', title: 'Social Security and Medicare' },
-      { key: 'state', label: 'State', title: 'State income tax' },
+      { key: 'state', label: 'State', title: 'State income tax, including any on capital gains (most states tax them as ordinary income)' },
     ],
   },
 ];
@@ -85,10 +93,11 @@ export class YearlyTable {
     if (!ledger) return;
 
     const taxesOn = Calculator.taxesOn(settings);
+    const used = (g, c) => ledger.some((row) => shown(row[g.key][c.key]));
     const groups = GROUPS.map((g) => ({
       ...g,
-      columns: g.key === 'taxes' ? (taxesOn ? g.columns : [])
-        : g.columns.filter((c) => ledger.some((row) => shown(row[g.key][c.key]))),
+      columns: g.key !== 'taxes' ? g.columns.filter((c) => used(g, c))
+        : taxesOn ? g.columns.filter((c) => c.key !== 'gains' || used(g, c)) : [],
     })).filter((g) => g.columns.length);
     this.basis.textContent = taxesOn ? 'After taxes' : 'Before taxes';
     this.footnote.replaceChildren(...this.notes(settings, ledger, groups));
@@ -162,7 +171,8 @@ export class YearlyTable {
     }
     if (groups.some((g) => g.columns.some((c) => c.key === 'cashedOut'))) {
       const n = ledger[ledger.length - 1].year;
-      parts.push(` Investments are cashed out in year ${n}${Calculator.taxesOn(settings) ? ', and their gains taxed then' : ''}.`);
+      parts.push(` Investments are cashed out in year ${n}${Calculator.taxesOn(settings)
+        ? ', and their gains taxed then as long-term capital gains' : ''}.`);
     }
     return parts;
   }

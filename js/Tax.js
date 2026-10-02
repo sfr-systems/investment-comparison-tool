@@ -164,16 +164,29 @@ export class Tax {
   }
 
   /**
-   * { federal, payroll, state } owed on one year's income. Federal tax can deduct the state tax and a
-   * few states deduct federal tax, so for those the two are settled together (it converges in a few rounds).
+   * { federal, gains, payroll, state } owed on one year's income. `gains` is the federal tax that the
+   * year's capital gains add (their 0 / 15 / 20% rates, plus any net investment income tax and
+   * alternative minimum tax they bring on, and their effect on the state tax deduction), and `federal`
+   * the rest: the federal income tax the year would owe without them. State tax includes any on the gains.
    */
   static year(income, stateCode) {
+    const { federal, state } = Tax.settle(income, stateCode);
+    const withoutGains = income.capitalGains > 0
+      ? Tax.settle({ ...income, capitalGains: 0 }, stateCode).federal : federal;
+    return { federal: withoutGains, gains: federal - withoutGains, payroll: Tax.payroll(income.wages), state };
+  }
+
+  /**
+   * { federal, state } income tax on one year's income. Federal tax can deduct the state tax and a few
+   * states deduct federal tax, so for those the two are settled together (it converges in a few rounds).
+   */
+  static settle(income, stateCode) {
     let state = Tax.state(stateCode, income);
     let federal = Tax.federal(income, state);
     for (let i = 0; i < 4 && STATES[stateCode]?.federalDeduction; i++) {
       state = Tax.state(stateCode, income, federal);
       federal = Tax.federal(income, state);
     }
-    return { federal, payroll: Tax.payroll(income.wages), state };
+    return { federal, state };
   }
 }

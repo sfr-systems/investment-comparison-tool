@@ -23,11 +23,14 @@ const INCOME = [
 ];
 /**
  * Deductions, drawn as positive amounts in their own bar, bottom to top: loan repayments, then (when
- * the project includes them) taxes in three steps of one slate hue. The initial investment isn't charted.
+ * the project includes them) taxes in three steps of one slate hue. The capital gains tax (the federal
+ * tax on investment growth, at year n) is the federal step striped, like growth. The initial
+ * investment isn't charted.
  */
 const COSTS = [
   { key: 'loan', label: 'Loan repayment', color: '--cf-loan' },
   { key: 'federalTax', label: 'Federal income tax', color: '--cf-federal-tax' },
+  { key: 'capitalGainsTax', label: 'Capital gains tax', color: '--cf-federal-tax', striped: true },
   { key: 'payrollTax', label: 'Social Security & Medicare', color: '--cf-payroll-tax' },
   { key: 'stateTax', label: 'State tax', color: '--cf-state-tax' },
 ];
