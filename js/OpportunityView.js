@@ -1,4 +1,4 @@
-import { el, numberInput, showPV, icon, setValidity } from './format.js';
+import { el, numberInput, showPV, icon, setValidity, formatDollars } from './format.js';
 import { RateSelector } from './RateSelector.js';
 import { Calculator } from './Calculator.js';
 import { Models } from './Models.js';
@@ -7,6 +7,7 @@ import { CashFlowChart } from './CashFlowChart.js';
 import { YearlyTable } from './YearlyTable.js';
 import { IncomeSourcePopup } from './IncomeSourcePopup.js';
 import { PVBreakdownPopup } from './PVBreakdownPopup.js';
+import { FEDERAL, FILING_STATUSES } from './taxData.js';
 
 /** Wording for the two yearly-amount sections (see streamGroup). */
 const STREAMS = {
@@ -97,7 +98,11 @@ export class OpportunityView {
           this.timespanSelector()),
         el('div', { class: 'field risk-field' },
           el('span', { class: 'field-label' }, 'Risk'),
-          Risk.toggle(opp, () => ctx.changed()))),
+          Risk.toggle(opp, () => ctx.changed())),
+        this.filingField = el('div', { class: 'field filing-field' },
+          el('span', { class: 'field-label' }, 'Filing status'),
+          this.filingToggle()),
+        this.filingNote = this.buildFilingNote()),
       el('div', { class: 'opp-grid' },
         this.indefiniteNote = this.buildIndefiniteNote(),
         this.amountWithRate('Loan amount', opp.loan, 'Loan interest rate', 'loan'),
@@ -320,6 +325,72 @@ export class OpportunityView {
     return toggle;
   }
 
+  /** [Single | Married filing jointly]: how this income source's taxes are figured (shown while taxes are on). */
+  filingToggle() {
+    const { opp } = this;
+    const keys = Object.keys(FILING_STATUSES);
+    const short = { single: 'Single', joint: 'Joint' }; // when the card is narrow (see .filing-short)
+    const group = el('div', { class: 'filing-toggle', role: 'radiogroup', 'aria-label': 'Filing status' });
+    const buttons = keys.map((key) => el('button', {
+      type: 'button', class: 'filing-option', role: 'radio', title: FILING_STATUSES[key], 'aria-label': FILING_STATUSES[key],
+      onclick: () => {
+        if (Calculator.filingStatus(opp) === key) return;
+        opp.filingStatus = key;
+        sync();
+        this.ctx.changed();
+      },
+    }, el('span', { class: 'filing-long' }, FILING_STATUSES[key]),
+    el('span', { class: 'filing-short' }, short[key])));
+    const sync = () => buttons.forEach((b, i) => {
+      const on = keys[i] === Calculator.filingStatus(opp);
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    group.addEventListener('keydown', (e) => {
+      const i = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0 }[e.key];
+      if (i == null) return;
+      e.preventDefault();
+      buttons[i].click();
+      buttons[i].focus();
+    });
+    group.append(...buttons);
+    sync();
+    return group;
+  }
+
+  /**
+   * Note under the filing status: how a joint return changes the taxes, and (filled in by update())
+   * what it changes for this income source.
+   */
+  buildFilingNote() {
+    const fed = (status) => formatDollars(status === 'joint' ? FEDERAL.joint.standardDeduction : FEDERAL.standardDeduction);
+    this.filingEffect = el('span', { class: 'filing-effect' });
+    return this.collapsibleNote({
+      className: 'info-note filing-note', iconName: 'info', collapsedKey: 'filingNoteCollapsed',
+      heading: 'How filing status changes taxes. ',
+      body: el('span', { class: 'note-body' },
+        'Couples filing jointly get wider brackets and twice the standard deduction '
+        + `(${fed('joint')} federally, vs ${fed('single')}), and the 0% capital gains rate, the 3.8% investment `
+        + 'income tax and the extra 0.9% Medicare tax start at higher incomes, so the same income usually owes less; '
+        + 'most states widen their brackets for couples too. This assumes it’s the couple’s only income: a spouse’s '
+        + 'own earnings would shrink the savings. ',
+        this.filingEffect),
+    });
+  }
+
+  /** "Here, filing jointly means $X less in taxes…": this income source's taxes under the other status. */
+  updateFilingEffect(b) {
+    const taxes = (x) => -(x.federalTax + x.capitalGainsTax + x.payrollTax + x.stateTax);
+    const joint = Calculator.filingStatus(this.opp) === 'joint';
+    const other = Calculator.opportunityBreakdown({ ...this.opp, filingStatus: joint ? 'single' : 'joint' },
+      this.ctx.project.settings);
+    const saved = joint ? taxes(other) - taxes(b) : taxes(b) - taxes(other); // single's taxes − joint's
+    this.filingEffect.textContent = !Number.isFinite(saved) ? ''
+      : Math.abs(saved) < 0.5 ? 'For this income source, the taxes come out the same either way.'
+        : `For this income source, filing jointly means ${formatDollars(Math.abs(saved))} ${saved > 0 ? 'less' : 'more'} `
+          + 'in taxes (present value) than filing single.';
+  }
+
   /** Amount + "invest it" checkbox; the growth rate only shows while invested. */
   initialPayoutGroup(group) {
     const label = 'Initial payout (one-time)';
@@ -390,6 +461,12 @@ export class OpportunityView {
 
     const b = Calculator.opportunityBreakdown(this.opp, this.ctx.project.settings);
     showPV(this.pvEl, b.total);
+
+    // Filing status only matters, and only shows, while taxes are included.
+    const taxesOn = Calculator.taxesOn(this.ctx.project.settings);
+    this.filingField.hidden = !taxesOn;
+    this.filingNote.hidden = !taxesOn;
+    if (taxesOn) this.updateFilingEffect(b);
     this.pvEl.classList.toggle('negative', b.total < -0.005);
 
     // Indefinite timespan: the final payout never arrives, and some parts may not converge.

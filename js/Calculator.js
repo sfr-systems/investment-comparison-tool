@@ -192,10 +192,16 @@ export class Calculator {
     return !!settings.taxes?.enabled;
   }
 
+  /** How an opportunity's income is taxed: 'single' (default) or 'joint' (married filing jointly). */
+  static filingStatus(opp) {
+    return opp.filingStatus === 'joint' ? 'joint' : 'single';
+  }
+
   /**
    * Present value of the taxes on an opportunity, as negative amounts by kind
    * ({ federalTax, capitalGainsTax, payrollTax, stateTax }, see Tax.year); all 0 when taxes are off.
-   * Each year's taxable income is taxed on its own (see taxableIncome), then discounted like the cash flows.
+   * Each year's taxable income is taxed on its own (see taxableIncome), under the opportunity's filing
+   * status, then discounted like the cash flows.
    * Indefinite: the initial payout is taxed at the start, and yearly return + salary (held
    * constant) are taxed the same every year, a perpetuity tax / d; investments are never cashed
    * out, so there are no capital gains.
@@ -204,11 +210,12 @@ export class Calculator {
     const out = { federalTax: 0, capitalGainsTax: 0, payrollTax: 0, stateTax: 0 };
     if (!Calculator.taxesOn(settings)) return out;
     const state = settings.taxes.state;
+    const status = Calculator.filingStatus(opp);
     if (n === Infinity) {
-      const start = Tax.year({ ordinary: +opp.initialPayout?.amount || 0 }, state);
+      const start = Tax.year({ ordinary: +opp.initialPayout?.amount || 0 }, state, status);
       const R = +opp.yearlyReturn?.amount || 0;
       const S = +opp.salary?.amount || 0;
-      const yearly = Tax.year({ ordinary: R + S, wages: S, investment: R }, state);
+      const yearly = Tax.year({ ordinary: R + S, wages: S, investment: R }, state, status);
       for (const [kind, key] of Object.entries(TAX_KEYS)) {
         const forever = !yearly[kind] ? 0 : d > 0 ? yearly[kind] / d : Infinity;
         out[key] = -(start[kind] + forever) || 0;
@@ -216,7 +223,7 @@ export class Calculator {
       return out;
     }
     const years = Calculator.baseCashFlows(opp, settings, n);
-    Calculator.yearlyTaxes(years, settings).forEach((tax, t) => {
+    Calculator.yearlyTaxes(years, settings, status).forEach((tax, t) => {
       for (const [kind, key] of Object.entries(TAX_KEYS)) out[key] -= tax[kind] / Math.pow(1 + d, t);
     });
     return out;
@@ -249,7 +256,7 @@ export class Calculator {
   static startTax(opp, settings) {
     const P0 = +opp.initialPayout?.amount || 0;
     if (!P0 || !Calculator.taxesOn(settings)) return 0;
-    const tax = Tax.year({ ordinary: P0 }, settings.taxes.state);
+    const tax = Tax.year({ ordinary: P0 }, settings.taxes.state, Calculator.filingStatus(opp));
     return tax.federal + tax.payroll + tax.state;
   }
 
@@ -274,7 +281,7 @@ export class Calculator {
       if (!byYear.has(t)) {
         const [R, S] = [returnAt(t), salaryAt(t)];
         const ordinary = R + S + (t === n ? payout : 0);
-        const tax = Tax.year({ ordinary, wages: S, investment: R }, settings.taxes.state);
+        const tax = Tax.year({ ordinary, wages: S, investment: R }, settings.taxes.state, Calculator.filingStatus(opp));
         const share = ordinary ? (tax.federal + tax.state) / ordinary : 0;
         byYear.set(t, { yearlyReturn: share * R, salary: share * S + tax.payroll });
       }
@@ -289,10 +296,13 @@ export class Calculator {
     return Math.max(0, (+opp.initialPayout.amount || 0) - Calculator.startTax(opp, settings));
   }
 
-  /** Taxes owed each year, [{ federal, gains, payroll, state }] (Tax.year) lined up with years 0..n; null when taxes are off. */
-  static yearlyTaxes(years, settings) {
+  /**
+   * Taxes owed each year, [{ federal, gains, payroll, state }] (Tax.year) lined up with years 0..n, for a
+   * filing status ('single' | 'joint'); null when taxes are off.
+   */
+  static yearlyTaxes(years, settings, status = 'single') {
     if (!Calculator.taxesOn(settings)) return null;
-    return Calculator.taxableIncome(years).map((income) => Tax.year(income, settings.taxes.state));
+    return Calculator.taxableIncome(years).map((income) => Tax.year(income, settings.taxes.state, status));
   }
 
   /** Resolve a yearly return or salary (see Models.yearlyStream) to streamPV's { S, g, k, cap, p, gi } (decimals). */
@@ -333,7 +343,7 @@ export class Calculator {
     if (n === Infinity) return null;
     const d = (Number(settings.discountRate) || 0) / 100;
     const years = Calculator.baseCashFlows(opp, settings, n);
-    Calculator.yearlyTaxes(years, settings)?.forEach((tax, t) => {
+    Calculator.yearlyTaxes(years, settings, Calculator.filingStatus(opp))?.forEach((tax, t) => {
       for (const [kind, key] of Object.entries(TAX_KEYS)) if (tax[kind]) years[t].costs[key] = -tax[kind];
     });
     if (discounted) {
@@ -412,7 +422,7 @@ export class Calculator {
     if (n === Infinity) return null;
     const d = (Number(settings.discountRate) || 0) / 100;
     const years = Calculator.baseCashFlows(opp, settings, n);
-    const taxes = Calculator.yearlyTaxes(years, settings);
+    const taxes = Calculator.yearlyTaxes(years, settings, Calculator.filingStatus(opp));
     const taxable = Calculator.taxableIncome(years);
     const payoutInvested = Calculator.payoutInvested(opp, settings);
     // Invested payout, salary and returns: everything put in plus its growth, cashed out at year n.
@@ -454,7 +464,8 @@ export class Calculator {
   static perpetuityLedger(opp, settings) {
     if (Calculator.resolveYears(opp, settings) !== Infinity) return null;
     const d = (Number(settings.discountRate) || 0) / 100;
-    const tax = (income) => (Calculator.taxesOn(settings) ? Tax.year(income, settings.taxes.state) : { ...NO_TAX });
+    const tax = (income) => (Calculator.taxesOn(settings)
+      ? Tax.year(income, settings.taxes.state, Calculator.filingStatus(opp)) : { ...NO_TAX });
     const P0 = +opp.initialPayout?.amount || 0;
     const R = +opp.yearlyReturn?.amount || 0;
     const S = +opp.salary?.amount || 0;

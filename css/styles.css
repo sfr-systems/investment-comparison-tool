@@ -996,7 +996,7 @@ input:disabled::placeholder { opacity: 0.6; }
 .risk-high { --rc: var(--risk-high); }
 
 .opp-meta .risk-field { grid-column: 1 / -1; }
-.risk-toggle {
+.risk-toggle, .filing-toggle {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 3px;
@@ -1005,7 +1005,7 @@ input:disabled::placeholder { opacity: 0.6; }
   border: 1px solid var(--border);
   border-radius: 9px;
 }
-.risk-option {
+.risk-option, .filing-option {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1022,9 +1022,9 @@ input:disabled::placeholder { opacity: 0.6; }
   transition: background-color 0.15s, border-color 0.15s, color 0.15s;
 }
 .risk-option .risk-gauge { width: 19px; height: 15px; opacity: 0.45; filter: grayscale(0.6); transition: opacity 0.15s; }
-.risk-option:hover { color: var(--text); }
+.risk-option:hover, .filing-option:hover { color: var(--text); }
 .risk-option:hover .risk-gauge { opacity: 0.8; }
-.risk-option[aria-checked="true"] {
+.risk-option[aria-checked="true"], .filing-option[aria-checked="true"] {
   color: var(--rc);
   font-weight: 600;
   background: color-mix(in srgb, var(--rc) 13%, var(--surface));
@@ -1032,6 +1032,21 @@ input:disabled::placeholder { opacity: 0.6; }
   box-shadow: var(--shadow-sm);
 }
 .risk-option[aria-checked="true"] .risk-gauge { opacity: 1; filter: none; }
+
+/* Filing status (shown while taxes are included): the risk toggle's look, in the accent color */
+.opp-meta .filing-field, .opp-meta .filing-note { grid-column: 1 / -1; }
+.opp-meta .filing-field[hidden], .opp-meta .filing-note[hidden] { display: none; }
+.filing-field { container-type: inline-size; }
+.filing-toggle { grid-template-columns: repeat(2, 1fr); }
+.filing-option { --rc: var(--accent); min-width: 0; }
+.filing-option > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.filing-short { display: none; }
+/* Too narrow for "Married filing jointly": "Joint" (the full status stays in the button's title) */
+@container (max-width: 380px) {
+  .filing-long { display: none; }
+  .filing-short { display: inline; }
+}
+.opp-meta .filing-note { align-self: start; }
 
 .risk-indicator { display: inline-flex; align-items: center; gap: 8px; cursor: default; }
 .risk-indicator[hidden] { display: none; }

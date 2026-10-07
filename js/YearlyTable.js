@@ -100,7 +100,7 @@ export class YearlyTable {
         : taxesOn ? g.columns.filter((c) => c.key !== 'gains' || used(g, c)) : [],
     })).filter((g) => g.columns.length);
     this.basis.textContent = taxesOn ? 'After taxes' : 'Before taxes';
-    this.footnote.replaceChildren(...YearlyTable.notes(settings, ledger, groups));
+    this.footnote.replaceChildren(...YearlyTable.notes(settings, ledger, groups, Calculator.filingStatus(this.opp)));
 
     const empty = !groups.some((g) => g.key !== 'taxes');
     if (this.expandBtn) this.expandBtn.hidden = empty;
@@ -158,16 +158,20 @@ export class YearlyTable {
     return sum;
   }
 
-  /** What the figures assume: whether taxes are in, and when investments are cashed out. */
-  static notes(settings, ledger, groups) {
+  /**
+   * What the figures assume: whether taxes are in (and for which filing status, 'single' | 'joint'), and
+   * when investments are cashed out.
+   */
+  static notes(settings, ledger, groups, status = 'single') {
     const parts = [];
     if (!Calculator.taxesOn(settings)) {
       parts.push('Before taxes: turn on “Include taxes” under Assumptions to deduct them.');
     } else {
       const state = STATES[settings.taxes.state];
+      const filer = status === 'joint' ? 'a married couple filing jointly' : 'a single filer';
       parts.push(state
-        ? `${TAX_YEAR} federal and ${state.name} taxes for a single filer, as if this were the only income.`
-        : `${TAX_YEAR} federal taxes for a single filer. Choose a state under Assumptions to add state tax.`);
+        ? `${TAX_YEAR} federal and ${state.name} taxes for ${filer}, as if this were the only income.`
+        : `${TAX_YEAR} federal taxes for ${filer}. Choose a state under Assumptions to add state tax.`);
     }
     if (groups.some((g) => g.columns.some((c) => c.key === 'cashedOut'))) {
       const n = ledger[ledger.length - 1].year;

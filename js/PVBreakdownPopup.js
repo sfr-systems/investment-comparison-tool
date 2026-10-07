@@ -1,6 +1,7 @@
 import { el, formatDollars, formatUSD, openPopup } from './format.js';
 import { Calculator } from './Calculator.js';
 import { GROUPS, shown, YearlyTable } from './YearlyTable.js';
+import { FILING_STATUSES } from './taxData.js';
 
 const pct = (rate) => `${Math.round(rate * 1e4) / 100}%`; // 0.07 → "7%", 0.0725 → "7.25%"
 
@@ -49,7 +50,7 @@ export class PVBreakdownPopup {
       kicker: el('div', { class: 'yt-kicker' },
         el('span', { class: 'eyebrow' }, 'Income & taxes by year'),
         el('span', { class: 'yt-basis' }, [
-          this.taxesOn ? 'After taxes' : 'Before taxes',
+          this.taxesOn ? `After taxes (${FILING_STATUSES[Calculator.filingStatus(opp)].toLowerCase()})` : 'Before taxes',
           `${pct(this.d)} discount rate`,
           this.indefinite ? 'Indefinite timespan' : `${n} ${n === 1 ? 'year' : 'years'}`,
         ].join(' · '))),
@@ -237,7 +238,7 @@ export class PVBreakdownPopup {
       }
     }
     // Tax basis, and when investments are cashed out (set timespans).
-    const basis = YearlyTable.notes(settings, this.rows, this.indefinite ? [] : this.groups).join('');
+    const basis = YearlyTable.notes(settings, this.rows, this.indefinite ? [] : this.groups, Calculator.filingStatus(opp)).join('');
     notes.push(!this.taxesOn ? basis : `${basis}${this.indefinite
       ? ' Taxes are the same every year; investments are never cashed out, so their gains aren’t taxed.' : ''
     } Rate is the year’s taxes as a share of its taxed income.`);

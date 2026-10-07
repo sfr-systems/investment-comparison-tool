@@ -280,5 +280,59 @@ check('payout: growth from the net amount', C.yearlyCashFlows(investedPayout, ip
 check('payout: start year nets to 0', C.yearlyLedger(investedPayout, ip)[0].net, 0);
 check('payout: taxes off → gross invested', C.opportunityPV(investedPayout, { ...ip, taxes: { enabled: false } }), 121000);
 
+// ---- Married filing jointly (standard deduction 32,200; brackets 24,800 / 100,800 / …; gains 0% to 98,900)
+// 100,000: taxable 67,800 → 10% of 24,800 + 12% of 43,000 = 2,480 + 5,160
+check('joint: 100,000 ordinary', Tax.federal({ ordinary: 100000 }, 0, 'joint'), 7640);
+check('joint: 60,000 ordinary (single owes 5,020)', Tax.federal({ ordinary: 60000 }, 0, 'joint'), 2840);
+// 40,000 + 30,000 gains: taxable 37,800, ordinary part 7,800 → 780; the gains stay in the 0% band
+check('joint: gains in the 0% band', Tax.federal({ ordinary: 40000, capitalGains: 30000 }, 0, 'joint'), 780);
+// 100,000 + 50,000 gains: taxable 117,800; ordinary 67,800 → 7,640; gains 0% to 98,900, 15% of 18,900
+check('joint: gains stacked into 15%', Tax.federal({ ordinary: 100000, capitalGains: 50000 }, 0, 'joint'), 7640 + 2835);
+check('joint: NIIT over 250,000', fed({ ordinary: 900000, investment: 900000 }).niit - Tax.federalParts(
+  { ordinary: 900000, investment: 900000 }, 0, 'joint').niit, 0.038 * 50000);
+// AMT at 600,000 AMTI: joint exemption 140,200 in full (phase-out from 1,000,000) → 26% of 244,500 + 28% of 215,300
+check('joint: AMT exemption', Tax.minimumTax(600000, 0, 0, 'joint'), 63570 + 60284);
+check('joint: payroll, no extra Medicare at 250,000', Tax.payroll(250000, 'joint'), 11439 + 3625);
+check('joint: payroll, extra Medicare over 250,000', Tax.payroll(300000, 'joint'), 11439 + 4350 + 450);
+check('joint: Tax.year passes the status to payroll', Tax.year({ ordinary: 300000, wages: 300000 }, 'TX', 'joint').payroll,
+  Tax.payroll(300000, 'joint'));
+// States: California doubles everything, so twice the income owes twice the tax
+check('joint CA: 120,000 = 2 × single 60,000', Tax.state('CA', { ordinary: 120000 }, 0, 'joint'),
+  2 * Tax.state('CA', { ordinary: 60000 }));
+// Connecticut 100,000: no exemption over 71,000; 2% of 20,000 + 4.5% of 80,000 = 4,000, less the 2% personal credit
+check('joint CT: 100,000', Tax.state('CT', { ordinary: 100000 }, 0, 'joint'), 3920);
+// New York 150,000: taxable 133,950, recapture of the 5.4% bracket phased in 84.7% (AGI 42,350 over 107,650)
+check('joint NY: recapture', Tax.state('NY', { ordinary: 150000 }, 0, 'joint'), 6900.8 + (0.054 * 133950 - 6900.8) * 0.847);
+// Maine 2,000,000: deduction and exemption phased out; 2% surcharge only over 1,500,000
+check('joint ME: surcharge over 1.5M', Tax.state('ME', { ordinary: 2000000 }, 0, 'joint'),
+  0.058 * 54850 + 0.0675 * 74900 + 0.0715 * 1370250 + 0.0915 * 500000);
+// Wisconsin 100,000: deduction 25,840 less 19.778% of 70,961, exemption 1,400
+const wiTaxable = 100000 - (25840 - 0.19778 * 70961) - 1400;
+check('joint WI: sliding deduction', Tax.state('WI', { ordinary: 100000 }, 0, 'joint'),
+  0.035 * 20150 + 0.044 * 49110 + 0.053 * (wiTaxable - 69260));
+check('joint PA: same as single (no joint table)', Tax.state('PA', { ordinary: 60000 }, 0, 'joint'), 1842);
+check('joint: single is the default', Tax.state('NY', { ordinary: 150000 }), Tax.state('NY', { ordinary: 150000 }, 0, 'single'));
+
+// Opportunities: filingStatus flows into every tax calculation
+const salary60kJoint = { ...salary60k, filingStatus: 'joint' };
+const bj = C.opportunityBreakdown(salary60kJoint, settings('TX'));
+check('joint opportunity: federal tax PV', bj.federalTax, -(2840 / 1.1 + 2840 / 1.21));
+check('joint opportunity: FICA unchanged', bj.payrollTax, b.payrollTax);
+check('joint opportunity: PV higher than single', Math.sign(bj.total - b.total), 1);
+// Half of a 100,000 salary invested in Texas: joint taxes 7,640 + 7,650 FICA come off first
+const investedJoint = { ...invested, filingStatus: 'joint' };
+check('joint opportunity: invested share after joint taxes', C.yearlyLedger(investedJoint, settings('TX'))[0].expenses.invested,
+  0.5 * (100000 - 7640 - 7650));
+const fullJoint = { ...full, filingStatus: 'joint' };
+check('joint ledger: Σ pv = PV', C.yearlyLedger(fullJoint, settings('NY')).reduce((a, row) => a + row.pv, 0),
+  C.opportunityPV(fullJoint, settings('NY')), 1e-6);
+const plJoint = C.perpetuityLedger({ ...fullJoint, yearsMode: 'indefinite' }, settings('NY'));
+check('joint perpetuity: start + every year ÷ d = PV', plJoint.start.pv + plJoint.every.pv,
+  C.opportunityPV({ ...fullJoint, yearsMode: 'indefinite' }, settings('NY')), 1e-6);
+check('joint perpetuity: start tax from the joint table', plJoint.start.taxes.federal,
+  Tax.year({ ordinary: 20000 }, 'NY', 'joint').federal);
+check('joint: start tax on the payout', C.startTax(fullJoint, settings('NY')),
+  ((t) => t.federal + t.payroll + t.state)(Tax.year({ ordinary: 20000 }, 'NY', 'joint')));
+
 if (failed) { console.error(`\n${failed} failed`); process.exit(1); }
 console.log('\nAll passed');

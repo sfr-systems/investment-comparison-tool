@@ -76,6 +76,7 @@ export class Models {
     opp.yearlyReturn = Models.upgradeStream(opp.yearlyReturn, settings);
     opp.salary = Models.upgradeStream(opp.salary, settings);
     opp.risk ??= 'neutral';
+    opp.filingStatus ??= 'single';
     opp.yearsMode ??= 'custom'; // saved before default timespans existed: keep their years
     return opp;
   }
@@ -174,6 +175,7 @@ export class Models {
       title,
       individual: '',
       risk: 'neutral', // 'low' | 'neutral' | 'high' (see Risk)
+      filingStatus: 'single', // 'single' | 'joint' (married filing jointly): how its income is taxed
       yearsMode: 'default', // 'default' follows project.settings.defaultYears; 'custom' uses `years`
       years: Models.DEFAULT_YEARS,
       initial: { amount: 0, rate: Models.rate('sp500') },

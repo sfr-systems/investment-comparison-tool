@@ -36,7 +36,7 @@ export class ProjectOptions {
     this.stateField = el('label', { class: 'option-state' },
       el('span', { class: 'field-label' }, 'State'), this.stateSelect);
     this.taxHint = el('span', { class: 'option-hint' },
-      `${TAX_YEAR} rates · single filer · each income source taxed on its own`);
+      `${TAX_YEAR} rates · each income source taxed on its own, as a single or joint filer`);
 
     const display = (key, label) => this.toggleSwitch(label, {
       checked: project.display[key] !== false,
@@ -122,12 +122,12 @@ export class ProjectOptions {
             + 'and your state’s income tax.'),
           el('label', { class: 'field', for: 'tax-state' },
             el('span', { class: 'field-label' }, 'State of residence'), select),
-          el('p', { class: 'app-dialog-fine' }, `Uses ${TAX_YEAR} brackets for a single filer with the standard deduction `
-            + '(or state income tax as an itemized deduction, when larger). Each income source is taxed as if it were '
-            + 'the only income; investments are taxed as long-term capital gains when cashed out at the end of the '
-            + 'timespan. Federal tax includes the alternative minimum tax and the 3.8% tax on investment income (gains '
-            + 'and yearly returns) over $200,000; state tax includes high-income surtaxes, recapture and phase-outs. '
-            + 'Local taxes aren’t included.'),
+          el('p', { class: 'app-dialog-fine' }, `Uses ${TAX_YEAR} brackets with the standard deduction (or state `
+            + 'income tax as an itemized deduction, when larger), for a single filer or a married couple filing jointly: '
+            + 'choose on each income source. Each income source is taxed as if it were the only income; investments '
+            + 'are taxed as long-term capital gains when cashed out at the end of the timespan. Federal tax includes the '
+            + 'alternative minimum tax and the 3.8% tax on investment income (gains and yearly returns) over $200,000 '
+            + '($250,000 joint); state tax includes high-income surtaxes, recapture and phase-outs. Local taxes aren’t included.'),
           el('div', { class: 'app-dialog-actions' },
             el('button', { type: 'button', class: 'btn', onclick: () => dialog.close() }, 'Cancel'),
             confirm)));
