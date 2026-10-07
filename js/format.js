@@ -86,9 +86,10 @@ export function debounce(fn, ms) {
 }
 
 /**
- * Large modal popup for an income source's expanded chart or table: a header with `kicker` (a
- * small label line) over `title`, optional `controls` and a close button, then `body`. Closes
- * with ×, Esc or a click on the backdrop; `onClose` runs once it's gone.
+ * Large modal popup for an income source's expanded chart or table, or its year-by-year present
+ * value (PVBreakdownPopup): a header with `kicker` (a small label line) over `title`, optional
+ * `controls` and a close button, then `body`. Closes with ×, Esc or a click on the backdrop;
+ * `onClose` runs once it's gone.
  */
 export function openPopup({ className = '', label, kicker, title, controls = null, body, onClose }) {
   const dialog = el('dialog', { class: `cf-dialog ${className}`.trim(), 'aria-label': label },
@@ -210,6 +211,7 @@ const ICON_PATHS = {
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>',
   moon: '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>',
   expand: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+  table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9.5h18M3 14.75h18M9 9.5V20"/>',
   swap: '<path d="M7 20V4M3 8l4-4 4 4M17 4v16M21 16l-4 4-4-4"/>',
   close: '<path d="M18 6 6 18M6 6l12 12"/>',
   cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',

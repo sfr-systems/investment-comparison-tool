@@ -6,6 +6,9 @@ const TAX_KEYS = { federal: 'federalTax', gains: 'capitalGainsTax', payroll: 'pa
 const ORDINARY_KEYS = ['salary', 'salaryInvested', 'yearlyReturn', 'yearlyReturnInvested', 'initialPayout', 'payout'];
 const GROWTH_KEYS = ['salaryGrowth', 'yearlyReturnGrowth', 'initialPayoutGrowth'];
 const sumKeys = (obj, keys) => keys.reduce((a, k) => a + (obj[k] || 0), 0);
+const sumValues = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
+/** A year's taxes (Tax.year's shape) when taxes are off. */
+const NO_TAX = { federal: 0, gains: 0, payroll: 0, state: 0 };
 
 /**
  * Present-value math. All rates passed in are decimals (0.05 = 5%).
@@ -400,13 +403,17 @@ export class Calculator {
    * yearly return in full, payouts, and every investment cashed out at year n), what's paid out
    * (`expenses`: amounts put into investments, loan repayments), `taxes` ({ federal, gains, payroll,
    * state }, see Tax.year; all 0 when taxes are off) and the `net` left. All amounts are positive except `net`.
-   * Discounting each year's net by (1+d)^t and adding them up gives the opportunity's PV.
+   * `taxed` is the income that year's taxes are figured on (ordinary income plus any capital gains, before
+   * deductions), `factor` the discount factor 1/(1+d)^t and `pv` the net in today's dollars (net × factor);
+   * adding up every year's `pv` gives the opportunity's PV.
    */
   static yearlyLedger(opp, settings) {
     const n = Calculator.resolveYears(opp, settings);
     if (n === Infinity) return null;
+    const d = (Number(settings.discountRate) || 0) / 100;
     const years = Calculator.baseCashFlows(opp, settings, n);
     const taxes = Calculator.yearlyTaxes(years, settings);
+    const taxable = Calculator.taxableIncome(years);
     const payoutInvested = Calculator.payoutInvested(opp, settings);
     // Invested payout, salary and returns: everything put in plus its growth, cashed out at year n.
     const balance = payoutInvested + years.reduce((a, row) =>
@@ -424,13 +431,47 @@ export class Calculator {
           + (year === 0 ? payoutInvested : 0),
         loan: -(costs.loan || 0),
       };
-      const tax = taxes?.[year] ?? { federal: 0, gains: 0, payroll: 0, state: 0 };
-      const total = (obj) => Object.values(obj).reduce((a, b) => a + b, 0);
-      return { year, income, expenses, taxes: tax, net: total(income) - total(expenses) - total(tax) };
+      const tax = taxes?.[year] ?? { ...NO_TAX };
+      const net = sumValues(income) - sumValues(expenses) - sumValues(tax);
+      const factor = 1 / Math.pow(1 + d, year);
+      const { ordinary, capitalGains } = taxable[year];
+      return { year, income, expenses, taxes: tax, net, taxed: ordinary + Math.max(0, capitalGains), factor, pv: net * factor };
     });
     const start = rows[0];
     const hasStart = [start.income, start.expenses, start.taxes].some((obj) => Object.values(obj).some(Boolean));
     return hasStart ? rows : rows.slice(1);
+  }
+
+  /**
+   * The indefinite-timespan counterpart of yearlyLedger (null on a set timespan): what happens at the
+   * `start` and `every` year after it, forever, shaped like a ledger row ({ income, expenses, taxes, net,
+   * taxed, factor, pv }). The start is the initial payout and its tax (factor 1); every year brings the
+   * yearly return and salary in full, less loan interest (interest-only forever) and their taxes, valued
+   * as a perpetuity (factor 1/d; at a discount rate ≤ 0 a nonzero net is unbounded). Amounts invested grow
+   * at the discount rate, keeping their value in today's dollars, so they're left out, and the final
+   * payout never comes. start.pv + every.pv is the opportunity's PV.
+   */
+  static perpetuityLedger(opp, settings) {
+    if (Calculator.resolveYears(opp, settings) !== Infinity) return null;
+    const d = (Number(settings.discountRate) || 0) / 100;
+    const tax = (income) => (Calculator.taxesOn(settings) ? Tax.year(income, settings.taxes.state) : { ...NO_TAX });
+    const P0 = +opp.initialPayout?.amount || 0;
+    const R = +opp.yearlyReturn?.amount || 0;
+    const S = +opp.salary?.amount || 0;
+    const L = +opp.loan?.amount || 0;
+    const row = (income, loan, taxes, factor) => {
+      const expenses = { invested: 0, loan };
+      const net = sumValues(income) - loan - sumValues(taxes);
+      const taxed = income.salary + income.yearlyReturn + income.initialPayout;
+      return { income, expenses, taxes, net, taxed, factor, pv: net ? net * factor : 0 };
+    };
+    const income = (amounts) => ({ salary: 0, yearlyReturn: 0, initialPayout: 0, payout: 0, cashedOut: 0, ...amounts });
+    return {
+      start: row(income({ initialPayout: P0 }), 0, tax({ ordinary: P0 }), 1),
+      every: row(income({ salary: S, yearlyReturn: R }),
+        L ? Calculator.loanPayment(L, Calculator.resolveRate(opp.loan?.rate, settings), Infinity) : 0,
+        tax({ ordinary: R + S, wages: S, investment: R }), d > 0 ? 1 / d : Infinity),
+    };
   }
 
   static opportunityPV(opp, settings) {

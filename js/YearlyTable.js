@@ -9,7 +9,7 @@ const COLLAPSED_YEARS = 2;
  * Column groups, in order; keys match Calculator.yearlyLedger. Income and expense columns show only when
  * used, tax columns whenever taxes are included (capital gains only when there are some).
  */
-const GROUPS = [
+export const GROUPS = [
   {
     key: 'income', label: 'Income', columns: [
       { key: 'salary', label: 'Salary', title: 'Yearly salary, including any part invested' },
@@ -39,7 +39,7 @@ const GROUPS = [
   },
 ];
 
-const shown = (v) => Math.abs(v) >= 0.5; // at least a dollar once rounded
+export const shown = (v) => Math.abs(v) >= 0.5; // at least a dollar once rounded
 
 /**
  * Table under an income source's chart spelling out each year's income, expenses, taxes and net
@@ -100,7 +100,7 @@ export class YearlyTable {
         : taxesOn ? g.columns.filter((c) => c.key !== 'gains' || used(g, c)) : [],
     })).filter((g) => g.columns.length);
     this.basis.textContent = taxesOn ? 'After taxes' : 'Before taxes';
-    this.footnote.replaceChildren(...this.notes(settings, ledger, groups));
+    this.footnote.replaceChildren(...YearlyTable.notes(settings, ledger, groups));
 
     const empty = !groups.some((g) => g.key !== 'taxes');
     if (this.expandBtn) this.expandBtn.hidden = empty;
@@ -159,7 +159,7 @@ export class YearlyTable {
   }
 
   /** What the figures assume: whether taxes are in, and when investments are cashed out. */
-  notes(settings, ledger, groups) {
+  static notes(settings, ledger, groups) {
     const parts = [];
     if (!Calculator.taxesOn(settings)) {
       parts.push('Before taxes: turn on “Include taxes” under Assumptions to deduct them.');

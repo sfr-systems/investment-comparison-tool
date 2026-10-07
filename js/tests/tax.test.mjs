@@ -171,6 +171,36 @@ check('ledger: capital gains tax in year 3', ledger[3].taxes.gains,
   C.yearlyTaxes(C.baseCashFlows(full, settings('NY'), 3), settings('NY'))[3].gains);
 check('ledger: capital gains tax > 0 on the growth', Math.sign(ledger[3].taxes.gains), 1);
 check('ledger: indefinite → none', C.yearlyLedger({ ...full, yearsMode: 'indefinite' }, settings('NY')) === null ? 1 : 0, 1);
+check('ledger: Σ pv = PV', ledger.reduce((a, row) => a + row.pv, 0), C.opportunityPV(full, settings('NY')), 1e-6);
+check('ledger: discount factor 1/(1+d)^t', ledger[2].factor, 1 / 1.21);
+check('ledger: pv = net × factor', ledger[3].pv, ledger[3].net / 1.331);
+check('ledger: taxed income is salary + return in full', ledger[1].taxed, 70000 + 30000);
+const fullTaxable = C.taxableIncome(C.baseCashFlows(full, settings('NY'), 3))[3];
+check('ledger: taxed income in the cash-out year adds the gains', ledger[3].taxed, fullTaxable.ordinary + fullTaxable.capitalGains);
+check('ledger: gains in the cash-out year', Math.sign(fullTaxable.capitalGains), 1);
+
+// ---- Indefinite (perpetuity ledger): the start + every year ÷ d is the PV
+const forever = { ...full, yearsMode: 'indefinite' };
+for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: false } }], ['NY taxes', settings('NY')],
+  ['CA taxes', settings('CA')], ['no payout', settings('TX')]]) {
+  const o = label === 'no payout' ? { ...forever, initialPayout: { amount: 0 } } : forever;
+  const { start, every } = C.perpetuityLedger(o, s);
+  check(`perpetuity (${label}): start + every year ÷ d = PV`, start.pv + every.pv, C.opportunityPV(o, s), 1e-6);
+}
+const pl = C.perpetuityLedger(forever, settings('NY'));
+check('perpetuity: start is the initial payout', pl.start.income.initialPayout, 20000);
+check('perpetuity: start tax is the payout’s', pl.start.taxes.federal + pl.start.taxes.state + pl.start.taxes.payroll,
+  C.startTax(forever, settings('NY')));
+check('perpetuity: every year the salary + return in full', pl.every.income.salary + pl.every.income.yearlyReturn, 100000);
+check('perpetuity: loan interest-only (10,000 × 5%)', pl.every.expenses.loan, 500);
+check('perpetuity: nothing invested', pl.every.expenses.invested + pl.start.expenses.invested, 0);
+check('perpetuity: valued at 1/d', pl.every.factor, 10);
+check('perpetuity: no gains tax', pl.every.taxes.gains, 0);
+check('perpetuity: set timespan → none', C.perpetuityLedger(full, settings('NY')) === null ? 1 : 0, 1);
+const zeroD = C.perpetuityLedger(forever, settings('TX', { discountRate: 0 }));
+check('perpetuity: d = 0 → unbounded yearly value', zeroD.every.pv, Infinity);
+check('perpetuity: d = 0, nothing yearly → 0', C.perpetuityLedger(
+  { ...forever, salary: { amount: 0 }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } }, settings('TX', { discountRate: 0 })).every.pv, 0);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal

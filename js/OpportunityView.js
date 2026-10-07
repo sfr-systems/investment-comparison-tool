@@ -6,6 +6,7 @@ import { Risk } from './Risk.js';
 import { CashFlowChart } from './CashFlowChart.js';
 import { YearlyTable } from './YearlyTable.js';
 import { IncomeSourcePopup } from './IncomeSourcePopup.js';
+import { PVBreakdownPopup } from './PVBreakdownPopup.js';
 
 /** Wording for the two yearly-amount sections (see streamGroup). */
 const STREAMS = {
@@ -111,7 +112,12 @@ export class OpportunityView {
       el('footer', { class: 'opp-footer' },
         el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
-        this.breakdownEl));
+        this.breakdownEl,
+        this.yearsBtn = el('button', {
+          type: 'button', class: 'pv-years-btn', 'aria-haspopup': 'dialog',
+          title: 'Each year’s income, taxes and net cash, and how they add up to the present value',
+          onclick: () => new PVBreakdownPopup(opp, ctx).open(),
+        }, icon('table'), el('span', {}, 'See income & taxes by year'), icon('arrowRight', 'pv-years-arrow'))));
 
     this.update();
     return this.root;
@@ -420,6 +426,9 @@ export class OpportunityView {
         + `${unbounded.length > 1 ? 'have' : 'has'} no finite present value when ${unbounded.length > 1 ? 'they continue' : 'it continues'} forever. `
         + 'Use a discount rate above 0%, or a set timespan.';
     }
+    const { loan, initial, initialPayout, yearlyReturn, salary, payout } = this.opp;
+    this.yearsBtn.hidden = ![loan?.amount, initial?.amount, initialPayout?.amount, yearlyReturn?.amount, salary?.amount, payout]
+      .some((amount) => +amount > 0);
     this.breakdownEl.replaceChildren(...Object.entries(BREAKDOWN_LABELS)
       .filter(([key]) => Math.abs(b[key]) >= 0.005)
       .flatMap(([key, label]) => [el('dt', {}, label), showPV(el('dd'), b[key])]));
