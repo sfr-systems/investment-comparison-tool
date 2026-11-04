@@ -3,6 +3,7 @@ import { Models } from './Models.js';
 import { Calculator } from './Calculator.js';
 import { OpportunityView } from './OpportunityView.js';
 import { Risk } from './Risk.js';
+import { SubGroupColor } from './SubGroupColor.js';
 
 /** Totals footer groupings; `sg.totalsBy` saves the choice (individual by default). */
 const TOTALS_BY = [
@@ -12,8 +13,9 @@ const TOTALS_BY = [
 
 /** Collapsible sub group: income sources (opportunities) + a PV footer by individual or by source. */
 export class SubGroupView {
-  constructor(subGroup, ctx, { onDelete }) {
+  constructor(subGroup, ctx, { onDelete, strategy }) {
     this.sg = subGroup;
+    this.strategy = strategy;
     this.ctx = ctx;
     this.onDelete = onDelete;
     this.children = [];
@@ -65,6 +67,8 @@ export class SubGroupView {
     this.root = el('section', { class: 'subgroup' },
       el('header', { class: 'subgroup-header' },
         this.toggle, title, this.riskEl, this.headerTotal,
+        // Its color in the strategy's comparison charts.
+        (this.colorPicker = SubGroupColor.picker(this.strategy, sg, () => ctx.changed({ light: true }))).root,
         el('button', {
           class: 'icon-btn danger', title: 'Delete sub group', 'aria-label': 'Delete sub group',
           onclick: () => this.onDelete(),

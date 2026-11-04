@@ -1,10 +1,14 @@
 import { el, formatPV } from './format.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const compact = new Intl.NumberFormat('en-US', {
-  style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: 2,
+const compactFormat = (digits) => new Intl.NumberFormat('en-US', {
+  style: 'currency', currency: 'USD', notation: 'compact', maximumFractionDigits: digits,
 });
+const compact = compactFormat(2);
+const compact1 = compactFormat(1);
 const short = (v) => compact.format(v).replace('-', '−');
+/** Value labels: one decimal on the card ($13.7M), two in the expanded popup ($13.68M). */
+const labelText = (v, expanded) => (expanded ? compact : compact1).format(v).replace('-', '−');
 const signed = (v) => formatPV(v).replace('-', '−');
 /** Smallest gaps (px) between neighbouring value labels / year labels before some are skipped. */
 const LABEL_GAP = { value: 46, year: 22 };
@@ -27,9 +31,10 @@ export class SeriesPlot {
   /**
    * Draw into `body`. years: the year of each point ([0..H] or [1..H]); series: [{ label, color,
    * values }] with values parallel to years; type: 'line' | 'bar'; ariaLabel names the plot;
-   * tipNote follows the year in the tooltip title.
+   * tipNote follows the year in the tooltip title; labels: false hides the value labels (lines).
    */
-  draw(body, { years, series, type = 'line', ariaLabel, tipNote = '' }) {
+  draw(body, { years, series, type = 'line', ariaLabel, tipNote = '', labels = true }) {
+    this.showLabels = labels;
     this.years = years;
     this.series = series;
     this.type = type;
@@ -102,7 +107,7 @@ export class SeriesPlot {
       s.values.forEach((v, i) => {
         const pos = { left: `${this.xPct(i)}%`, bottom: `${this.yPct(v)}%` };
         this.markers.push(el('span', { class: 'sv-marker', dataset: { i, s: si }, style: { ...pos, background: s.color } }));
-        this.labels.push(el('span', { class: 'sv-value', dataset: { i, s: si }, style: pos }, short(v)));
+        this.labels.push(el('span', { class: 'sv-value', dataset: { i, s: si }, style: pos }, labelText(v, this.expanded)));
       });
     });
     return [svg];
@@ -151,6 +156,10 @@ export class SeriesPlot {
       span.hidden = (i % yearStep !== 0 && i !== last) || (tail && i === last - tail && tail * pitch < LABEL_GAP.year);
     });
     if (!this.labels.length) return;
+    if (!this.showLabels) {
+      this.labels.forEach((label) => { label.hidden = true; });
+      return;
+    }
 
     const valueStep = every(LABEL_GAP.value);
     const shown = (i) => i % valueStep === 0 || (i === last && last % valueStep >= valueStep / 2);

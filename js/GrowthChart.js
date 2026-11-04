@@ -27,8 +27,11 @@ export class GrowthChart extends ChartPanel {
         this.ctx.changed({ light: true });
       },
     }, 'After tax');
+    const labels = this.labelsButton('hideGrowthLabels');
     this.syncControls = () => {
       type.sync();
+      labels.sync();
+      labels.button.hidden = this.strategy.growthChartType !== 'line'; // bars have no value labels
       const taxesOn = Calculator.taxesOn(this.ctx.project.settings);
       this.taxBtn.disabled = !taxesOn;
       this.taxBtn.setAttribute('aria-pressed', String(this.afterTax()));
@@ -36,7 +39,7 @@ export class GrowthChart extends ChartPanel {
         ? 'Show growth after taxes: only what’s left of salary, returns and payouts after their taxes is invested, and growth is net of the capital gains tax due when sold'
         : 'Turn on Include taxes above to see growth after taxes';
     };
-    return el('div', { class: 'cf-controls' }, type.group, this.taxBtn);
+    return el('div', { class: 'cf-controls' }, type.group, labels.button, this.taxBtn);
   }
 
   /** After tax only while the project includes taxes. */
@@ -59,6 +62,7 @@ export class GrowthChart extends ChartPanel {
       years: Array.from({ length: H }, (_, i) => i + 1), series,
       type: this.strategy.growthChartType === 'line' ? 'line' : 'bar',
       ariaLabel: this.title, tipNote: afterTax ? 'growth after tax' : 'growth before tax',
+      labels: !this.strategy.hideGrowthLabels,
     });
     this.writeSummary(series, H, afterTax);
   }

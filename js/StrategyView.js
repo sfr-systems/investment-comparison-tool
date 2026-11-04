@@ -51,6 +51,7 @@ export class StrategyView {
 
     this.children = strategy.subGroups.map((sg) => {
       const view = new SubGroupView(sg, ctx, {
+        strategy,
         onDelete: () => {
           if (!confirmDelete('sub group', sg.title)) return;
           strategy.subGroups = strategy.subGroups.filter((s) => s !== sg);

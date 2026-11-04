@@ -1,9 +1,8 @@
 import { el, formatPV, icon, openPopup } from './format.js';
 import { Models } from './Models.js';
 import { SeriesPlot } from './SeriesPlot.js';
+import { SubGroupColor } from './SubGroupColor.js';
 
-/** Categorical colors in fixed order (validated palette, `--series-*` in styles.css). */
-const SERIES = 8;
 
 /**
  * One chart in a strategy's comparison section (StrategyCharts): a header (title, controls, expand
@@ -18,18 +17,12 @@ export class ChartPanel {
     this.expanded = expanded;
   }
 
-  /** A sub group's color, the same in every chart: by its position in the strategy. */
-  static color(strategy, subGroup) {
-    const i = strategy.subGroups.indexOf(subGroup);
-    return i >= 0 && i < SERIES ? `var(--series-${i + 1})` : 'var(--muted)';
-  }
-
   /** Calculator lines ({ subGroup, values }) → SeriesPlot series ({ label, color, values }). */
   series(lines, from = 0) {
     const labels = Models.subGroupLabels(this.strategy.subGroups);
     return lines.map(({ subGroup, values }) => ({
       label: labels[this.strategy.subGroups.indexOf(subGroup)],
-      color: ChartPanel.color(this.strategy, subGroup),
+      color: SubGroupColor.of(this.strategy, subGroup),
       values: values.slice(from),
     }));
   }
@@ -65,6 +58,19 @@ export class ChartPanel {
 
   controls() {
     return null;
+  }
+
+  /** On/off button that shows or hides the line chart's value labels (saved as `strategy[field]`, hidden when true). */
+  labelsButton(field) {
+    const button = el('button', {
+      type: 'button', class: 'cf-cumulative', title: 'Show or hide the value labels on the lines',
+      onclick: () => {
+        this.strategy[field] = !this.strategy[field];
+        this.update();
+        this.ctx.changed({ light: true });
+      },
+    }, 'Labels');
+    return { button, sync: () => button.setAttribute('aria-pressed', String(!this.strategy[field])) };
   }
 
   expand() {

@@ -8,7 +8,13 @@ import { ChartPanel } from './ChartPanel.js';
  */
 export class NetValueChart extends ChartPanel {
   get title() {
-    return 'Net value if cashed out, by year';
+    return 'Net cash out value, by year';
+  }
+
+  controls() {
+    const labels = this.labelsButton('hideNetLabels');
+    this.syncControls = labels.sync;
+    return el('div', { class: 'cf-controls' }, labels.button);
   }
 
   draw() {
@@ -23,7 +29,7 @@ export class NetValueChart extends ChartPanel {
     }
     this.plot.draw(this.body, {
       years: Array.from({ length: H + 1 }, (_, t) => t), series, type: 'line',
-      ariaLabel: 'Net value if cashed out, by year', tipNote: 'if cashed out',
+      ariaLabel: this.title, tipNote: 'if cashed out', labels: !this.strategy.hideNetLabels,
     });
     this.writeSummary(series, H, excluded);
   }
