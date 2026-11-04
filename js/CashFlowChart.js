@@ -171,9 +171,11 @@ export class CashFlowChart {
     }
     // Keep income, and loan repayments and taxes as positive amounts; the start column only shows
     // when something is received then.
-    this.years = Calculator.yearlyCashFlows(this.opp, settings, { discounted: this.opp.chartMode === 'pv' })
-      .map(({ year, income, costs }) => ({
-        year, income,
+    // Salary and yearly return kept are what's left after their taxes (shown in the deductions bar).
+    this.years = Calculator.yearlyCashFlows(this.opp, settings,
+      { discounted: this.opp.chartMode === 'pv', afterStreamTaxes: true })
+      .map(({ year, income, costs, streamTax = 0 }) => ({
+        year, income, streamTax,
         costs: Object.fromEntries(COSTS.filter((s) => costs[s.key]).map((s) => [s.key, -costs[s.key]])),
       }))
       .filter((row) => row.year > 0 || Object.keys(row.income).length);
@@ -195,7 +197,11 @@ export class CashFlowChart {
       for (const [key, v] of Object.entries(amounts)) acc[key] = (acc[key] || 0) + v;
       return { ...acc };
     };
-    return rows.map((row) => ({ year: row.year, income: addInto(income, row.income), costs: addInto(costs, row.costs) }));
+    let streamTax = 0;
+    return rows.map((row) => ({
+      year: row.year, income: addInto(income, row.income), costs: addInto(costs, row.costs),
+      streamTax: (streamTax += row.streamTax || 0),
+    }));
   }
 
   /** Axis top (a round number ≥ max) and about `count` evenly spaced round ticks from 0. */
@@ -295,10 +301,11 @@ export class CashFlowChart {
         ...[this.opp.chartCumulative && 'total to date', this.opp.chartMode === 'pv' && 'present value']
           .filter(Boolean).map((note) => el('span', { class: 'muted' }, ` · ${note}`))),
       ...incomeRows.map((s) => line(s, 'income')),
-      incomeRows.length > 1 ? total('Income', income) : null,
+      incomeRows.length > 1 ? total(row.streamTax ? 'Income after salary / return taxes' : 'Income', income) : null,
       ...costRows.map((s) => line(s, 'costs')),
       costRows.length > 1 ? total('Deductions', costs) : null,
-      incomeRows.length && costRows.length ? total('Net', income - costs) : null,
+      // Salary and return are shown after their taxes, so only the other deductions come off them.
+      incomeRows.length && costRows.length ? total('Net', income + row.streamTax - costs) : null,
       !incomeRows.length && !costRows.length ? el('div', { class: 'muted' }, 'No cash flow this year') : null,
     ].filter(Boolean));
 
