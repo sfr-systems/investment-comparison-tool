@@ -336,9 +336,10 @@ export class Calculator {
    * balance. An initial payout is received at the start; if it's invested, `initialPayoutGrowth` is
    * what it earns each year after that. With taxes on, each year's `federalTax`, `capitalGainsTax`
    * (year n), `payrollTax` and `stateTax` are costs too. Amounts are as received or accrued that year;
-   * with `discounted` each is divided by (1+d)^t.
+   * with `discounted` each is divided by (1+d)^t. With `afterStreamTaxes` (the chart), the salary and
+   * yearly return kept are what's left after that year's taxes on them (see streamTaxes).
    */
-  static yearlyCashFlows(opp, settings, { discounted = false } = {}) {
+  static yearlyCashFlows(opp, settings, { discounted = false, afterStreamTaxes = false } = {}) {
     const n = Calculator.resolveYears(opp, settings);
     if (n === Infinity) return null;
     const d = (Number(settings.discountRate) || 0) / 100;
@@ -346,10 +347,27 @@ export class Calculator {
     Calculator.yearlyTaxes(years, settings, Calculator.filingStatus(opp))?.forEach((tax, t) => {
       for (const [kind, key] of Object.entries(TAX_KEYS)) if (tax[kind]) years[t].costs[key] = -tax[kind];
     });
+    // The share of salary and yearly return kept (not invested), after that year's taxes on them:
+    // (1 − p)·(amount − tax). Those taxes stay among the costs; `streamTax` notes how much was taken
+    // from the kept amounts, so income + streamTax + costs is still the year's net.
+    const streamTax = afterStreamTaxes && Calculator.streamTaxes(opp, settings, n);
+    if (streamTax) {
+      for (const row of years) {
+        if (!row.year) continue;
+        for (const key of ['salary', 'yearlyReturn']) {
+          const take = Math.min(row.income[key] || 0, streamTax[key](row.year));
+          if (take <= 0) continue;
+          row.income[key] -= take;
+          if (row.income[key] < 0.005) delete row.income[key];
+          row.streamTax = (row.streamTax || 0) + take;
+        }
+      }
+    }
     if (discounted) {
       for (const row of years) {
         const factor = Math.pow(1 + d, row.year);
         for (const side of [row.income, row.costs]) for (const key of Object.keys(side)) side[key] /= factor;
+        if (row.streamTax) row.streamTax /= factor;
       }
     }
     const hasStart = Object.keys(years[0].income).length || Object.keys(years[0].costs).length;

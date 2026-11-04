@@ -115,6 +115,18 @@ const kept = C.opportunityBreakdown(invested, settings('TX'));
 check('invested salary: kept = salary − invested (d = 10%)', kept.salary, (100000 - 39590) / 1.1 + (100000 - 39590) / 1.21);
 check('invested salary: taxes off → half of the gross', C.yearlyCashFlows(invested, { ...settings('TX'), taxes: { enabled: false } })[0]
   .income.salaryInvested, 50000);
+// Chart: salary kept after its taxes = 100,000 − 20,820 tax − 39,590 invested = 39,590 (the other half)
+const cfAfter = C.yearlyCashFlows(invested, settings('TX'), { afterStreamTaxes: true })[0];
+check('chart: salary kept after its taxes', cfAfter.income.salary, 39590);
+check('chart: invested unchanged', cfAfter.income.salaryInvested, 39590);
+check('chart: the taxes taken from the salary', cfAfter.streamTax, 20820);
+check('chart: income + streamTax + costs = net', cfAfter.income.salary + cfAfter.income.salaryInvested + cfAfter.streamTax
+  + Object.values(cfAfter.costs).reduce((a, b) => a + b, 0), C.yearlyLedger(invested, settings('TX'))[0].net
+  + C.yearlyLedger(invested, settings('TX'))[0].expenses.invested);
+const allIn = opp({ salary: { amount: 200000, raise: 0, invest: true, investPct: 100, investRate: { mode: 'sp500' } } });
+check('chart: 100% invested → no salary kept', C.yearlyCashFlows(allIn, settings('TX'), { afterStreamTaxes: true })[0].income.salary ?? 0, 0);
+check('chart: taxes off → salary kept unchanged', C.yearlyCashFlows(invested, { ...settings('TX'), taxes: { enabled: false } },
+  { afterStreamTaxes: true })[0].income.salary, 50000);
 // Salary + return: income taxes split by amount, FICA all the salary's. 60,000 + 40,000 in Texas: federal 13,170
 const both = C.streamTaxes(opp({ salary: { amount: 60000 }, yearlyReturn: { amount: 40000 } }), settings('TX'), 2);
 check('stream taxes: salary share + FICA', both.salary(1), 13170 * 0.6 + 4590);
