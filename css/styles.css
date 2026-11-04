@@ -53,6 +53,15 @@
   --cf-federal-tax: #424d5f;
   --cf-payroll-tax: #76808f;
   --cf-state-tax: #acb4c0;
+  /* Categorical line colors in fixed order (strategy chart: one per sub group); validated palette */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
   color-scheme: light;
 }
 
@@ -96,6 +105,14 @@
   --cf-federal-tax: #bec6d3;
   --cf-payroll-tax: #8892a4;
   --cf-state-tax: #535d70;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
+  --series-7: #9085e9;
+  --series-8: #e66767;
   --sync-ok: #6cc59b;
   --sync-warn: #e7a35a;
   color-scheme: dark;
@@ -1940,3 +1957,57 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
   * { transition: none !important; }
   .sync-btn .icon, .sync-status .icon, .toast { animation: none !important; }
 }
+
+/* Strategy chart (js/StrategyValueChart.js): sub groups' net value if cashed out, by year */
+.sv-chart {
+  padding: 12px 16px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.sv-chart.collapsed { padding-bottom: 12px; }
+.sv-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.sv-head .eyebrow { flex: 1; min-width: 0; }
+.sv-expand[hidden], .sv-content[hidden] { display: none; }
+.sv-chart.collapsed .collapse-btn .icon { transform: rotate(-90deg); }
+.sv-content { margin-top: 12px; }
+.sv-plot { overflow: visible; }
+.sv-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.sv-lines polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.sv-crosshair { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--muted); pointer-events: none; }
+.sv-dot {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--surface);
+  transform: translate(-50%, 50%);
+  pointer-events: none;
+}
+.sv-crosshair[hidden], .sv-dot[hidden] { display: none; }
+.sv-swatch { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+.sv-x-axis { position: relative; height: 20px; }
+.sv-x-axis span {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  font-size: 11px;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.sv-summary { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-strong); font-size: 13px; line-height: 1.5; color: var(--text-2); }
+.sv-summary:empty { display: none; }
+.sv-summary p { margin: 0; }
+.sv-summary .sv-fine { font-size: 12px; color: var(--muted); }
+/* In the popup: the chart fills the window above its summary */
+.sv-dialog .sv-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; border: none; background: none; }
+.sv-dialog .sv-content { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; }
+.sv-dialog .cf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.sv-dialog .cf-frame { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto auto; column-gap: 10px; }
+.sv-dialog .cf-plot { height: auto; }
+.sv-dialog .cf-y-axis { width: 52px; }
+.sv-dialog .cf-y-axis span, .sv-dialog .sv-x-axis span, .sv-dialog .cf-x-title { font-size: 12px; }
+.sv-dialog .cf-legend { font-size: 13px; }
+.sv-dialog .sv-summary { font-size: 14px; }
+.cf-tip-row .sv-swatch { width: 10px; }

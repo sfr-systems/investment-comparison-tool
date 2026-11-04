@@ -175,6 +175,19 @@ export class Models {
     });
   }
 
+  /** Sub group names for charts: their titles, with unnamed ones numbered like opportunityLabels. */
+  static subGroupLabels(subGroups) {
+    const base = Models.DEFAULT_SUBGROUP_TITLE;
+    const unnamed = (g) => !(g.title || '').trim() || g.title.trim() === base;
+    const count = subGroups.filter(unnamed).length;
+    let i = 0;
+    return subGroups.map((g) => {
+      if (!unnamed(g)) return g.title.trim();
+      i += 1;
+      return count > 1 ? `${base} ${i}` : base;
+    });
+  }
+
   static opportunity(title = Models.DEFAULT_OPPORTUNITY_TITLE) {
     return {
       id: Models.id(),

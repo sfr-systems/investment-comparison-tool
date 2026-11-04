@@ -27,6 +27,7 @@ export class ProjectView {
       changed: ({ light = false } = {}) => {
         this.save();
         if (!light) this.refresh();
+        else this.children.forEach((c) => c.refreshLabels()); // e.g. a renamed sub group in its strategy's chart
         this.rail?.refreshLabels();
       },
       /** Items added/removed: save and rebuild the strategy list. */

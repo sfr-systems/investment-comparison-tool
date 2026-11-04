@@ -4,6 +4,7 @@ import { Calculator } from './Calculator.js';
 import { SubGroupView } from './SubGroupView.js';
 import { Beacon } from './Beacon.js';
 import { Risk } from './Risk.js';
+import { StrategyValueChart } from './StrategyValueChart.js';
 
 /** Collapsible strategy containing sub groups. */
 export class StrategyView {
@@ -69,6 +70,9 @@ export class StrategyView {
         ctx.structureChanged();
       },
     }, icon('plus'), 'Add Strategy Sub Group'));
+    // Compares the sub groups' net value by year (only once there's a sub group to compare).
+    this.valueChart = new StrategyValueChart(strategy, ctx);
+    if (strategy.subGroups.length) body.append(this.valueChart.render());
 
     const beacon = Beacon.describe(this.position);
     this.root = el('section', { class: 'strategy' },
@@ -137,8 +141,14 @@ export class StrategyView {
     this.toggle.setAttribute('aria-expanded', String(!this.strategy.collapsed));
   }
 
+  /** Light edits (titles, collapsing) don't recalculate; the chart's legend still follows renames. */
+  refreshLabels() {
+    if (this.valueChart.root && !this.strategy.valueChartCollapsed) this.valueChart.update();
+  }
+
   update() {
     this.children.forEach((c) => c.update());
+    if (this.valueChart.root) this.valueChart.update();
     const measure = Models.totalsMeasure(this.ctx.project);
     this.totalLabel.textContent = measure === 'cumulative' ? 'Total cumulative value' : 'Total present value';
     const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings, measure);

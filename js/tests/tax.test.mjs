@@ -227,6 +227,28 @@ check('cumulative: measure switch', C.opportunityValue(full, settings('NY'), 'cu
   C.cumulativeBreakdown(full, settings('NY')).total);
 check('cumulative: sub group total', C.subGroupTotals({ opportunities: [full, full] }, settings('NY'), 'cumulative').total,
   2 * C.cumulativeBreakdown(full, settings('NY')).total, 1e-6);
+// ---- Cash-out values (strategy chart): net worth if everything were cashed out and taxed each year
+for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: false } }], ['NY taxes', settings('NY')]]) {
+  const v = C.cashOutValues(full, s);
+  check(`cash out (${label}): one value per year 0..n`, v.length, 4);
+  check(`cash out (${label}): year n = cumulative value`, v[3], C.cumulativeBreakdown(full, s).total, 1e-6);
+  // Year 1 = the same opportunity with a 1-year timespan, less its final payout and with the loan's
+  // year-1 repayment from the 3-year schedule
+  const one = { ...full, years: 1, payout: 0, loan: { amount: 0 } };
+  const A = C.loanPayment(10000, 0.05, 3);
+  check(`cash out (${label}): year 1 = a 1-year timespan, loan repaid on schedule`, v[1],
+    C.cumulativeBreakdown(one, s).total - A, 1e-6);
+}
+const v0 = C.cashOutValues(full, settings('NY'));
+check('cash out: start = payout less its tax, investment back at cost', v0[0], 20000 - C.startTax(full, settings('NY')), 1e-6);
+check('cash out: indefinite → none', C.cashOutValues(forever, settings('NY')) === null ? 1 : 0, 1);
+const series = C.cashOutSeries({ subGroups: [
+  { opportunities: [full, { ...full, years: 1 }] }, { opportunities: [forever] }, { opportunities: [] }] }, settings('NY'));
+check('cash out series: longest timespan', series.years, 3);
+check('cash out series: sub groups with nothing to cash out get no line', series.lines.length, 1);
+check('cash out series: indefinite sources counted as left out', series.excluded, 1);
+check('cash out series: a shorter source holds its final value', series.lines[0].values[3],
+  C.cashOutValues(full, settings('NY'))[3] + C.cashOutValues({ ...full, years: 1 }, settings('NY'))[1], 1e-6);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal
