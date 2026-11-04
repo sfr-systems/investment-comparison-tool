@@ -591,6 +591,51 @@ export class Calculator {
     return { years, lines, excluded };
   }
 
+  /**
+   * Growth earned each year t = 0..n on everything invested (null on an indefinite timespan): the
+   * initial investment, an invested initial payout, and invested salary and returns (amounts put
+   * in at the end of a year earn nothing that year). Over the timespan it adds up to the capital
+   * gains cashed out at year n. Before tax (the default) taxes are left out entirely, so the whole
+   * invested share of salary, returns and payout goes in. With `afterTax` (and taxes included in
+   * the project), only what's left of them after their taxes is invested (as in baseCashFlows), and
+   * each year's growth is cut by the tax its gains owe when cashed out at year n: the extra tax the
+   * gains bring on that year (federal and state) as a share of all gains.
+   */
+  static investedGrowth(opp, settings, { afterTax = false } = {}) {
+    const n = Calculator.resolveYears(opp, settings);
+    if (n === Infinity) return null;
+    const taxed = afterTax && Calculator.taxesOn(settings);
+    const s = taxed ? settings : { ...settings, taxes: { ...settings.taxes, enabled: false } };
+    const years = Calculator.baseCashFlows(opp, s, n);
+    const I = +opp.initial?.amount || 0;
+    const g = Calculator.resolveRate(opp.initial?.rate, settings);
+    const growth = years.map((row, t) => sumKeys(row.income, GROWTH_KEYS) + (t ? I * Math.pow(1 + g, t - 1) * g : 0));
+    if (!taxed || !growth.some(Boolean)) return growth;
+    const income = Calculator.taxableIncome(years)[n];
+    const total = (x) => sumValues(Tax.year(x, settings.taxes.state, Calculator.filingStatus(opp)));
+    const gainsTax = total(income) - total({ ...income, capitalGains: 0 });
+    const keep = income.capitalGains > 0 ? 1 - gainsTax / income.capitalGains : 1;
+    return growth.map((v) => v * keep);
+  }
+
+  /**
+   * A strategy's sub groups by investedGrowth: { years: H, lines: [{ subGroup, values }] } for t = 0..H,
+   * each adding up its income sources (0 after one's timespan ends); H is the longest set timespan.
+   * Indefinite income sources are left out, like cashOutSeries; sub groups with no set timespan get no line.
+   */
+  static investedGrowthSeries(strategy, settings, options) {
+    const groups = strategy.subGroups.map((subGroup) => ({
+      subGroup,
+      sources: subGroup.opportunities.map((opp) => Calculator.investedGrowth(opp, settings, options)).filter(Boolean),
+    })).filter((g) => g.sources.length);
+    const years = Math.max(0, ...groups.flatMap((g) => g.sources.map((v) => v.length - 1)));
+    const lines = groups.map(({ subGroup, sources }) => ({
+      subGroup,
+      values: Array.from({ length: years + 1 }, (_, t) => sources.reduce((a, v) => a + (v[t] || 0), 0)),
+    }));
+    return { years, lines };
+  }
+
   /** What totals add up: 'pv' (present value, the default) or 'cumulative' (cumulativeBreakdown). */
   static breakdown(opp, settings, measure = 'pv') {
     return measure === 'cumulative'

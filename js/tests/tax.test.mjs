@@ -249,6 +249,32 @@ check('cash out series: sub groups with nothing to cash out get no line', series
 check('cash out series: indefinite sources counted as left out', series.excluded, 1);
 check('cash out series: a shorter source holds its final value', series.lines[0].values[3],
   C.cashOutValues(full, settings('NY'))[3] + C.cashOutValues({ ...full, years: 1 }, settings('NY'))[1], 1e-6);
+// ---- Investment growth (strategy chart): growth each year on everything invested
+// Salary only: 70,000 +3%, half invested at 8% → year 2 growth = 8% of year 1's 35,000 = 2,800 (before tax)
+const salaryOnly = { ...full, initial: { amount: 0 }, initialPayout: { amount: 0 }, yearlyReturn: { amount: 0 } };
+const igSalary = C.investedGrowth(salaryOnly, settings('NY'));
+check('growth: none at the start or in year 1 (salary only)', igSalary[0] + igSalary[1], 0);
+check('growth: year 2 = 8% of 35,000', igSalary[2], 2800);
+// Initial investment alone: 1,000 at 10% → 100, 110, 121
+const investOnly = { ...salaryOnly, salary: { amount: 0 }, initial: full.initial };
+check('growth: initial investment 1,000 at 10%, year 3', C.investedGrowth(investOnly, settings('NY'))[3], 121, 1e-9);
+const igPre = C.investedGrowth(full, settings('NY'));
+const noTax = { ...settings('NY'), taxes: { enabled: false } };
+check('growth before tax: adds up to the gains cashed out (taxes off)', igPre.reduce((a, b) => a + b, 0),
+  C.taxableIncome(C.baseCashFlows(full, noTax, 3))[3].capitalGains, 1e-6);
+check('growth before tax ignores taxes', igPre[3], C.investedGrowth(full, noTax)[3]);
+const igPost = C.investedGrowth(full, settings('NY'), { afterTax: true });
+const fy = C.baseCashFlows(full, settings('NY'), 3);
+const fyIncome = C.taxableIncome(fy)[3];
+const tot = (x) => Object.values(Tax.year(x, 'NY')).reduce((a, b) => a + b, 0);
+const keepShare = 1 - (tot(fyIncome) - tot({ ...fyIncome, capitalGains: 0 })) / fyIncome.capitalGains;
+check('growth after tax: adds up to the gains less their tax', igPost.reduce((a, b) => a + b, 0), fyIncome.capitalGains * keepShare, 1e-6);
+check('growth after tax < before', Math.sign(igPre[2] - igPost[2]), 1);
+check('growth after tax, taxes off → before tax', C.investedGrowth(full, noTax, { afterTax: true })[2], C.investedGrowth(full, noTax)[2]);
+check('growth: indefinite → none', C.investedGrowth(forever, settings('NY')) === null ? 1 : 0, 1);
+const igs = C.investedGrowthSeries({ subGroups: [{ opportunities: [full, { ...full, years: 2 }] }, { opportunities: [forever] }] }, settings('NY'));
+check('growth series: longest timespan, one line', igs.years * 10 + igs.lines.length, 31);
+check('growth series: a shorter source adds nothing after it ends', igs.lines[0].values[3], igPre[3]);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal
