@@ -1958,7 +1958,8 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
   .sync-btn .icon, .sync-status .icon, .toast { animation: none !important; }
 }
 
-/* Strategy chart (js/StrategyValueChart.js): sub groups' net value if cashed out, by year */
+/* Sub group comparison at the bottom of a strategy (js/StrategyCharts.js): net value if cashed out
+   and invested salary growth, side by side (js/NetValueChart.js, js/SalaryGrowthChart.js, js/SeriesPlot.js) */
 .sv-chart {
   padding: 12px 16px 16px;
   background: var(--surface);
@@ -1968,24 +1969,56 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .sv-chart.collapsed { padding-bottom: 12px; }
 .sv-head { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .sv-head .eyebrow { flex: 1; min-width: 0; }
-.sv-expand[hidden], .sv-content[hidden] { display: none; }
 .sv-chart.collapsed .collapse-btn .icon { transform: rotate(-90deg); }
-.sv-content { margin-top: 12px; }
+.sv-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 28px; margin-top: 12px; }
+.sv-grid[hidden] { display: none; }
+@media (max-width: 1000px) { .sv-grid { grid-template-columns: minmax(0, 1fr); } }
+.sv-panel { min-width: 0; display: flex; flex-direction: column; }
+.sv-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; min-height: 30px; margin-bottom: 12px; }
+.sv-panel-head .cf-controls { flex-wrap: wrap; }
+.cf-cumulative:disabled { opacity: 0.5; cursor: not-allowed; }
 .sv-plot { overflow: visible; }
 .sv-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sv-lines polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .sv-crosshair { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--muted); pointer-events: none; }
-.sv-dot {
+.sv-crosshair[hidden] { display: none; }
+/* A marker at each year, ringed in the surface color; the hovered year's grow */
+.sv-marker {
   position: absolute;
-  width: 9px;
-  height: 9px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--surface);
   transform: translate(-50%, 50%);
   pointer-events: none;
+  transition: width 0.12s, height 0.12s;
 }
-.sv-crosshair[hidden], .sv-dot[hidden] { display: none; }
+.sv-marker.is-active { width: 10px; height: 10px; }
+/* Value labels: text ink, never the series color (the marker beside them carries identity) */
+.sv-value {
+  position: absolute;
+  transform: translate(-50%, -21px);
+  margin-bottom: 0;
+  font-size: 10.5px;
+  line-height: 14px;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 2px var(--surface), 0 0 2px var(--surface), 0 0 3px var(--surface);
+}
+.sv-value[hidden], .sv-x-axis span[hidden] { display: none; }
+.sv-plot.has-active .sv-value { opacity: 0.35; }
+/* Grouped bars: one column per year, a bar per sub group, 2px apart, rounded at the data end */
+.sv-cols { position: absolute; inset: 0; display: flex; }
+.sv-col { position: relative; flex: 1 1 0; min-width: 0; display: flex; justify-content: center; gap: 2px; padding: 0 4px; border-radius: 4px; }
+.sv-col.is-active { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.sv-slot { position: relative; flex: 1 1 0; max-width: 28px; min-width: 2px; }
+.sv-bar { position: absolute; left: 0; right: 0; border-radius: 3px 3px 0 0; transition: opacity 0.12s; }
+.sv-bar.is-negative { border-radius: 0 0 3px 3px; }
+.sv-plot.has-active .sv-col:not(.is-active) .sv-bar { opacity: 0.45; }
 .sv-swatch { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+.sv-swatch.is-bar { width: 10px; height: 10px; border-radius: 3px; }
 .sv-x-axis { position: relative; height: 20px; }
 .sv-x-axis span {
   position: absolute;
@@ -2001,13 +2034,13 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .sv-summary p { margin: 0; }
 .sv-summary .sv-fine { font-size: 12px; color: var(--muted); }
 /* In the popup: the chart fills the window above its summary */
-.sv-dialog .sv-chart { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0; border: none; background: none; }
-.sv-dialog .sv-content { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0; }
+.sv-dialog .sv-panel { flex: 1; min-height: 0; }
 .sv-dialog .cf-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .sv-dialog .cf-frame { flex: 1; min-height: 0; grid-template-rows: minmax(0, 1fr) auto auto; column-gap: 10px; }
 .sv-dialog .cf-plot { height: auto; }
 .sv-dialog .cf-y-axis { width: 52px; }
 .sv-dialog .cf-y-axis span, .sv-dialog .sv-x-axis span, .sv-dialog .cf-x-title { font-size: 12px; }
+.sv-dialog .sv-value { font-size: 11.5px; }
 .sv-dialog .cf-legend { font-size: 13px; }
 .sv-dialog .sv-summary { font-size: 14px; }
 .cf-tip-row .sv-swatch { width: 10px; }

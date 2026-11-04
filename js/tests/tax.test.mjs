@@ -249,6 +249,26 @@ check('cash out series: sub groups with nothing to cash out get no line', series
 check('cash out series: indefinite sources counted as left out', series.excluded, 1);
 check('cash out series: a shorter source holds its final value', series.lines[0].values[3],
   C.cashOutValues(full, settings('NY'))[3] + C.cashOutValues({ ...full, years: 1 }, settings('NY'))[1], 1e-6);
+// ---- Invested salary growth (strategy chart)
+// 70,000 salary +3%, half invested at 8%: year 2 growth = 8% of year 1's 35,000 = 2,800 (before tax)
+const sgPre = C.salaryGrowth(full, settings('NY'));
+check('salary growth: none at the start or in year 1', sgPre[0] + sgPre[1], 0);
+check('salary growth: year 2 = 8% of 35,000', sgPre[2], 2800);
+check('salary growth: before tax ignores taxes', sgPre[3], C.salaryGrowth(full, { ...settings('NY'), taxes: { enabled: false } })[3]);
+const sgPost = C.salaryGrowth(full, settings('NY'), { afterTax: true });
+const fy = C.baseCashFlows(full, settings('NY'), 3);
+const keepShare = (() => {
+  const inc = C.taxableIncome(fy)[3];
+  const tot = (x) => Object.values(Tax.year(x, 'NY')).reduce((a, b) => a + b, 0);
+  return 1 - (tot(inc) - tot({ ...inc, capitalGains: 0 })) / inc.capitalGains;
+})();
+check('salary growth after tax: after-tax salary invested, less the gains tax share', sgPost[2], fy[2].income.salaryGrowth * keepShare, 1e-6);
+check('salary growth after tax < before', Math.sign(sgPre[2] - sgPost[2]), 1);
+check('salary growth after tax, taxes off → before tax', C.salaryGrowth(full, { ...settings('NY'), taxes: { enabled: false } }, { afterTax: true })[2], 2800);
+check('salary growth: indefinite → none', C.salaryGrowth(forever, settings('NY')) === null ? 1 : 0, 1);
+const sgs = C.salaryGrowthSeries({ subGroups: [{ opportunities: [full, { ...full, years: 2 }] }, { opportunities: [forever] }] }, settings('NY'));
+check('salary growth series: longest timespan, one line', sgs.years * 10 + sgs.lines.length, 31);
+check('salary growth series: a shorter source adds nothing after it ends', sgs.lines[0].values[3], sgPre[3]);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal
