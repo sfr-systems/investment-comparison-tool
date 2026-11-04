@@ -21,19 +21,27 @@ const LABEL_HEIGHT = 14;
  * would collide are thinned out (every 2nd, 5th… year) and stacked labels are nudged apart.
  */
 export class SeriesPlot {
-  /** expanded: the popup's large copy (more ticks and labels). */
+  /**
+   * expanded: the popup's large copy (more ticks and labels), whose legend items are checkboxes
+   * that add or remove series (by `key`; kept across redraws while the popup is open).
+   */
   constructor({ expanded = false } = {}) {
     this.expanded = expanded;
+    this.hidden = new Set();
     this.active = -1;
     this.observer = new ResizeObserver(() => this.layout());
   }
 
   /**
    * Draw into `body`. years: the year of each point ([0..H] or [1..H]); series: [{ label, color,
-   * values }] with values parallel to years; type: 'line' | 'bar'; ariaLabel names the plot;
+   * values, key }] with values parallel to years; type: 'line' | 'bar'; ariaLabel names the plot;
    * tipNote follows the year in the tooltip title; labels: false hides the value labels (lines).
    */
-  draw(body, { years, series, type = 'line', ariaLabel, tipNote = '', labels = true }) {
+  draw(body, options) {
+    const { years, series: all, type = 'line', ariaLabel, tipNote = '', labels = true } = options;
+    this.lastDraw = [body, options];
+    // Series unchecked in the expanded legend are left out, and the axis fits the rest.
+    const series = this.expanded ? all.filter((s) => !this.hidden.has(s.key)) : all;
     this.showLabels = labels;
     this.years = years;
     this.series = series;
@@ -79,8 +87,22 @@ export class SeriesPlot {
 
     this.yearLabels = years.map((t, i) => el('span', { style: { left: `${this.xPct(i)}%` } }, String(t)));
     const xAxis = el('div', { class: 'sv-x-axis', 'aria-hidden': 'true' }, this.yearLabels);
-    const legend = series.length > 1 && el('ul', { class: 'cf-legend' },
-      series.map((s) => el('li', {}, el('span', { class: `sv-swatch${type === 'bar' ? ' is-bar' : ''}`, style: { background: s.color } }), s.label)));
+    const swatch = (s) => el('span', { class: `sv-swatch${type === 'bar' ? ' is-bar' : ''}`, style: { background: s.color } });
+    const legend = all.length > 1 && el('ul', { class: `cf-legend${this.expanded ? ' sv-legend-toggles' : ''}` },
+      all.map((s) => el('li', {}, this.expanded
+        ? el('label', { class: 'sv-legend-toggle' },
+          el('input', {
+            type: 'checkbox', checked: !this.hidden.has(s.key),
+            onchange: (e) => {
+              if (e.target.checked) this.hidden.delete(s.key);
+              else this.hidden.add(s.key);
+              this.draw(...this.lastDraw);
+              body.querySelector(`.sv-legend-toggle input[data-key="${CSS.escape(s.key)}"]`)?.focus();
+            },
+            dataset: { key: s.key },
+          }),
+          swatch(s), s.label)
+        : [swatch(s), s.label])));
 
     this.active = -1;
     body.replaceChildren(

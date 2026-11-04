@@ -21,6 +21,7 @@ export class ChartPanel {
   series(lines, from = 0) {
     const labels = Models.subGroupLabels(this.strategy.subGroups);
     return lines.map(({ subGroup, values }) => ({
+      key: subGroup.id,
       label: labels[this.strategy.subGroups.indexOf(subGroup)],
       color: SubGroupColor.of(this.strategy, subGroup),
       values: values.slice(from),

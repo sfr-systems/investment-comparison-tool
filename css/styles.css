@@ -2103,3 +2103,9 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .sg-color-option.is-auto::after { content: "Automatic"; font: inherit; font-size: 12px; color: var(--text-2); }
 .sg-color-option.is-auto[aria-checked="true"] { border-style: solid; border-color: var(--text); }
 .sg-color-option.is-auto:hover { transform: none; color: var(--text); }
+/* Expanded strategy charts: legend items are checkboxes that add or remove a sub group */
+.sv-legend-toggle { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; }
+.sv-legend-toggle input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.sv-legend-toggle:has(input:not(:checked)) { color: var(--muted); }
+.sv-legend-toggle:has(input:not(:checked)) .sv-swatch { opacity: 0.35; }
+.sv-legend-toggles { gap: 6px 18px; }
