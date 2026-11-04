@@ -64,20 +64,12 @@ export class GrowthChart extends ChartPanel {
       ariaLabel: this.title, tipNote: afterTax ? 'growth after tax' : 'growth before tax',
       labels: !this.strategy.hideGrowthLabels,
     });
-    this.writeSummary(series, H, afterTax);
+    this.writeSummary(afterTax);
   }
 
-  writeSummary(series, H, afterTax) {
-    const { money } = ChartPanel;
-    const total = (s) => s.values.reduce((a, b) => a + b, 0);
-    const [first, second] = [...series].sort((a, b) => total(b) - total(a));
-    const finding = series.length === 1 || total(second) < 0.5
-      ? `${first.label}’s investments grow by ${money(total(first))} over ${H} year${H > 1 ? 's' : ''}, `
-        + `${money(first.values.at(-1))} of it in year ${H}.`
-      : `Over ${H} years, ${first.label}’s investments grow the most, by ${money(total(first))}, `
-        + `${money(total(first) - total(second))} more than ${second.label}’s.`;
+  /** How the values are worked out. */
+  writeSummary(afterTax) {
     this.summary.replaceChildren(
-      el('p', {}, finding),
       el('p', { class: 'sv-fine' },
         'Each year’s growth on everything invested, added up across each sub group’s income sources: the initial '
         + 'investment, an invested initial payout, and salary and returns invested in earlier years (amounts invested '

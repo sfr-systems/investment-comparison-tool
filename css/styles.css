@@ -1986,7 +1986,7 @@ body:has(.cf-dialog[open]) { overflow: hidden; }
 .sv-panel-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 6px 10px; min-height: 30px; margin-bottom: 12px; }
 .sv-panel-head .cf-controls { flex-wrap: wrap; }
 .cf-cumulative:disabled { opacity: 0.5; cursor: not-allowed; }
-.sv-plot { overflow: visible; }
+.sv-plot { overflow: visible; height: 263px; } /* 1.5× the income source charts' 175px */
 .sv-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .sv-lines polyline { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .sv-crosshair { position: absolute; top: 0; bottom: 0; border-left: 1px dashed var(--muted); pointer-events: none; }
