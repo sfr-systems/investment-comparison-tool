@@ -6,8 +6,8 @@ import { Risk } from './Risk.js';
 
 /** Totals footer groupings; `sg.totalsBy` saves the choice (individual by default). */
 const TOTALS_BY = [
-  { key: 'individual', label: 'Individual', caption: 'Present value by individual' },
-  { key: 'opportunity', label: 'Source', caption: 'Present value by income source' },
+  { key: 'individual', label: 'Individual', caption: 'by individual' },
+  { key: 'opportunity', label: 'Source', caption: 'by income source' },
 ];
 
 /** Collapsible sub group: income sources (opportunities) + a PV footer by individual or by source. */
@@ -40,11 +40,11 @@ export class SubGroupView {
     this.headerTotal = el('span', { class: 'header-total' });
     this.riskEl = Risk.indicator('risk-compact');
     this.list = el('div', { class: 'opportunity-list' });
-    // Reads as "Present value by [Individual | Source]".
-    const totalsCaption = el('div', { class: 'eyebrow totals-caption' }, 'Present value by');
+    // Reads as "Present value by [Individual | Source]" (or "Cumulative value by", see Totals).
+    this.totalsCaption = el('div', { class: 'eyebrow totals-caption' });
     this.totalsRows = el('div', { class: 'totals-rows' });
     this.footer = el('div', { class: 'subgroup-totals' },
-      el('div', { class: 'totals-head' }, totalsCaption, this.totalsByToggle()),
+      el('div', { class: 'totals-head' }, this.totalsCaption, this.totalsByToggle()),
       this.totalsRows);
 
     this.children = sg.opportunities.map((opp) => {
@@ -90,7 +90,7 @@ export class SubGroupView {
     const { sg, ctx } = this;
     const group = el('div', { class: 'unit-toggle totals-by', role: 'radiogroup', 'aria-label': 'Summarize by' });
     const buttons = TOTALS_BY.map((m) => el('button', {
-      type: 'button', class: 'unit-option', role: 'radio', title: m.caption,
+      type: 'button', class: 'unit-option', role: 'radio',
       onclick: () => {
         if ((sg.totalsBy ?? 'individual') === m.key) return;
         sg.totalsBy = m.key;
@@ -98,8 +98,9 @@ export class SubGroupView {
         ctx.changed({ light: true });
       },
     }, m.label));
-    this.syncTotalsBy = () => buttons.forEach((b, i) => {
+    this.syncTotalsBy = (measureLabel) => buttons.forEach((b, i) => {
       const on = TOTALS_BY[i].key === (sg.totalsBy ?? 'individual');
+      b.title = `${measureLabel} ${TOTALS_BY[i].caption}`;
       b.setAttribute('aria-checked', String(on));
       b.tabIndex = on ? 0 : -1;
     });
@@ -129,20 +130,23 @@ export class SubGroupView {
 
   update() {
     this.children.forEach((c) => c.update());
-    const { byIndividual, total } = Calculator.subGroupTotals(this.sg, this.ctx.project.settings);
+    const measure = Models.totalsMeasure(this.ctx.project);
+    const measureLabel = measure === 'cumulative' ? 'Cumulative value' : 'Present value';
+    this.totalsCaption.textContent = `${measureLabel} by`;
+    const { byIndividual, total } = Calculator.subGroupTotals(this.sg, this.ctx.project.settings, measure);
     showPV(this.headerTotal, total);
     Risk.render(this.riskEl, this.sg.opportunities, this.ctx.project.settings);
     const amount = (pv) => showPV(el('span', { class: pv < -0.005 ? 'negative' : '' }), pv);
     const by = TOTALS_BY.find((m) => m.key === this.sg.totalsBy) ?? TOTALS_BY[0];
-    this.syncTotalsBy();
+    this.syncTotalsBy(measureLabel);
     const settings = this.ctx.project.settings;
     const labels = Models.opportunityLabels(this.sg.opportunities);
     const lines = by.key === 'opportunity'
-      ? this.sg.opportunities.map((opp, i) => [labels[i], Calculator.opportunityPV(opp, settings)])
+      ? this.sg.opportunities.map((opp, i) => [labels[i], Calculator.opportunityValue(opp, settings, measure)])
       : byIndividual;
     const rows = lines.map(([name, pv]) =>
       el('div', { class: 'total-row' }, el('span', { title: name }, name), amount(pv)));
-    // The one place the exact (unrounded) present value is shown.
+    // The one place the exact (unrounded) total is shown.
     rows.push(el('div', { class: 'total-row grand' },
       this.totalLabel = el('span', {}),
       el('span', { class: total < -0.005 ? 'negative' : '' }, formatUSD(total))));

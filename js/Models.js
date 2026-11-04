@@ -34,11 +34,17 @@ export class Models {
   }
 
   /**
-   * Whether income source cards show their cash-flow chart and yearly table, and whether the
-   * expanded popup shows both together (IncomeSourcePopup).
+   * Whether income source cards show their cash-flow chart and yearly table, whether the
+   * expanded popup shows both together (IncomeSourcePopup), and what totals add up: 'pv'
+   * (present value) or 'cumulative' (every year's cash added up, net of taxes).
    */
   static display() {
-    return { charts: true, tables: true, popupBoth: false };
+    return { charts: true, tables: true, popupBoth: false, totals: 'pv' };
+  }
+
+  /** The project's totals measure for Calculator ('pv' unless set to 'cumulative'). */
+  static totalsMeasure(project) {
+    return project.display?.totals === 'cumulative' ? 'cumulative' : 'pv';
   }
 
   static strategy(title = 'New Strategy') {

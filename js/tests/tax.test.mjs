@@ -201,6 +201,32 @@ const zeroD = C.perpetuityLedger(forever, settings('TX', { discountRate: 0 }));
 check('perpetuity: d = 0 → unbounded yearly value', zeroD.every.pv, Infinity);
 check('perpetuity: d = 0, nothing yearly → 0', C.perpetuityLedger(
   { ...forever, salary: { amount: 0 }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } }, settings('TX', { discountRate: 0 })).every.pv, 0);
+// ---- Cumulative value (Totals: Cumulative): every year's net added up, not discounted
+for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: false } }], ['NY taxes', settings('NY')],
+  ['CA joint', settings('CA')]]) {
+  const o = label === 'CA joint' ? { ...full, filingStatus: 'joint' } : full;
+  const cum = C.cumulativeBreakdown(o, s);
+  check(`cumulative (${label}): total = Σ ledger net`, cum.total, C.yearlyLedger(o, s).reduce((a, row) => a + row.net, 0), 1e-6);
+  const parts = Object.entries(cum).filter(([k]) => k !== 'total').reduce((a, [, v]) => a + v, 0);
+  check(`cumulative (${label}): parts add up to the total`, parts, cum.total, 1e-6);
+  check(`cumulative (${label}): same as PV at a 0% discount rate`, cum.total,
+    C.opportunityPV(o, { ...s, discountRate: 0 }), 1e-6);
+  check(`cumulative (${label}): doesn't depend on the discount rate`, C.cumulativeBreakdown(o, { ...s, discountRate: 3 }).total, cum.total, 1e-6);
+}
+check('cumulative: taxes are negative', Math.sign(C.cumulativeBreakdown(full, settings('NY')).stateTax), -1);
+check('cumulative: taxes off → no taxes', C.cumulativeBreakdown(full, { ...settings('NY'), taxes: { enabled: false } }).federalTax, 0);
+// Indefinite: the start counts once; yearly amounts never stop
+const cumForever = C.cumulativeBreakdown(forever, settings('NY'));
+check('cumulative indefinite: unbounded salary', cumForever.salary, Infinity);
+check('cumulative indefinite: unbounded total', cumForever.total, Infinity);
+check('cumulative indefinite: initial payout once', cumForever.initialPayout, 20000);
+const startOnly = { ...forever, salary: { amount: 0 }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } };
+check('cumulative indefinite, nothing yearly: payout less its tax', C.cumulativeBreakdown(startOnly, settings('NY')).total,
+  20000 - C.startTax(startOnly, settings('NY')), 1e-6);
+check('cumulative: measure switch', C.opportunityValue(full, settings('NY'), 'cumulative'),
+  C.cumulativeBreakdown(full, settings('NY')).total);
+check('cumulative: sub group total', C.subGroupTotals({ opportunities: [full, full] }, settings('NY'), 'cumulative').total,
+  2 * C.cumulativeBreakdown(full, settings('NY')).total, 1e-6);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal

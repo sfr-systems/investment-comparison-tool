@@ -87,7 +87,7 @@ export class StrategyView {
         this.riskWrap = el('span', { class: 'strategy-risk' },
           el('span', { class: 'eyebrow' }, 'Overall risk'),
           this.riskEl = Risk.indicator()),
-        el('span', { class: 'header-total-wrap' }, el('span', { class: 'eyebrow' }, 'Total present value'), this.totalEl),
+        el('span', { class: 'header-total-wrap' }, this.totalLabel = el('span', { class: 'eyebrow' }), this.totalEl),
         el('span', { class: 'strategy-actions' },
           this.duplicateBtn = el('button', {
             class: 'icon-btn', title: 'Duplicate strategy', 'aria-label': 'Duplicate strategy',
@@ -139,7 +139,9 @@ export class StrategyView {
 
   update() {
     this.children.forEach((c) => c.update());
-    const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings);
+    const measure = Models.totalsMeasure(this.ctx.project);
+    this.totalLabel.textContent = measure === 'cumulative' ? 'Total cumulative value' : 'Total present value';
+    const total = Calculator.strategyTotal(this.strategy, this.ctx.project.settings, measure);
     showPV(this.totalEl, total);
     Risk.render(this.riskEl, this.strategy.subGroups.flatMap((sg) => sg.opportunities),
       this.ctx.project.settings);
