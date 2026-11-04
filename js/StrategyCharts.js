@@ -1,10 +1,10 @@
 import { el, icon } from './format.js';
 import { NetValueChart } from './NetValueChart.js';
-import { SalaryGrowthChart } from './SalaryGrowthChart.js';
+import { GrowthChart } from './GrowthChart.js';
 
 /**
  * Sub group comparison at the bottom of a strategy: net value if cashed out (NetValueChart) with
- * invested salary growth (SalaryGrowthChart) to its right, side by side on wide screens. Each sub
+ * investment growth (GrowthChart) to its right, side by side on wide screens. Each sub
  * group has the same color in both. The section collapses as one (saved as
  * `strategy.valueChartCollapsed`); each chart expands on its own.
  */
@@ -12,7 +12,7 @@ export class StrategyCharts {
   constructor(strategy, ctx) {
     this.strategy = strategy;
     this.ctx = ctx;
-    this.panels = [new NetValueChart(strategy, ctx), new SalaryGrowthChart(strategy, ctx)];
+    this.panels = [new NetValueChart(strategy, ctx), new GrowthChart(strategy, ctx)];
   }
 
   render() {

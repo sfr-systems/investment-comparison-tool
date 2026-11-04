@@ -8,15 +8,15 @@ const TYPES = [
 ];
 
 /**
- * Each year's growth on invested salary, by sub group (Calculator.salaryGrowthSeries): bars by
- * default or lines ([Bar | Line], saved as `strategy.growthChartType`), before tax by default or
- * after tax (the After tax button, saved as `strategy.growthAfterTax`; needs Include taxes).
+ * Each year's growth on everything invested, by sub group (Calculator.investedGrowthSeries): the
+ * initial investment, invested initial payouts, and invested salary and returns. Bars by default or
+ * lines ([Bar | Line], saved as `strategy.growthChartType`), before tax by default or after tax (the
+ * After tax button, saved as `strategy.growthAfterTax`; needs Include taxes).
  */
-export class SalaryGrowthChart extends ChartPanel {
+export class GrowthChart extends ChartPanel {
   get title() {
-    return 'Invested salary growth, by year';
+    return 'Investment growth, by year';
   }
-
   controls() {
     const type = this.segmented('growthChartType', TYPES, 'bar', 'Chart type');
     this.taxBtn = el('button', {
@@ -33,7 +33,7 @@ export class SalaryGrowthChart extends ChartPanel {
       this.taxBtn.disabled = !taxesOn;
       this.taxBtn.setAttribute('aria-pressed', String(this.afterTax()));
       this.taxBtn.title = taxesOn
-        ? 'Show growth after taxes: only after-tax salary is invested, and growth is net of the capital gains tax due when sold'
+        ? 'Show growth after taxes: only what’s left of salary, returns and payouts after their taxes is invested, and growth is net of the capital gains tax due when sold'
         : 'Turn on Include taxes above to see growth after taxes';
     };
     return el('div', { class: 'cf-controls' }, type.group, this.taxBtn);
@@ -47,12 +47,12 @@ export class SalaryGrowthChart extends ChartPanel {
   draw() {
     const settings = this.ctx.project.settings;
     const afterTax = this.afterTax();
-    const { years: H, lines } = Calculator.salaryGrowthSeries(this.strategy, settings, { afterTax });
+    const { years: H, lines } = Calculator.investedGrowthSeries(this.strategy, settings, { afterTax });
     // Year 0 never earns growth, so the chart starts at year 1.
     const series = this.series(lines, 1);
     if (!H || !series.some((s) => s.values.some((v) => Math.abs(v) >= 0.005))) {
-      this.note('No income source here invests salary yet. Turn on “Invest some or all salary” in an income source '
-        + '(with a growth rate) to compare its growth here.');
+      this.note('Nothing here is invested yet. Add an initial investment, or invest an initial payout, salary or '
+        + 'returns (with a growth rate) in an income source to compare its growth here.');
       return;
     }
     this.plot.draw(this.body, {
@@ -66,22 +66,22 @@ export class SalaryGrowthChart extends ChartPanel {
   writeSummary(series, H, afterTax) {
     const { money } = ChartPanel;
     const total = (s) => s.values.reduce((a, b) => a + b, 0);
-    const ranked = [...series].sort((a, b) => total(b) - total(a));
-    const [first, second] = ranked;
+    const [first, second] = [...series].sort((a, b) => total(b) - total(a));
     const finding = series.length === 1 || total(second) < 0.5
-      ? `${first.label} earns ${money(total(first))} of growth on invested salary over ${H} year${H > 1 ? 's' : ''}, `
+      ? `${first.label}’s investments grow by ${money(total(first))} over ${H} year${H > 1 ? 's' : ''}, `
         + `${money(first.values.at(-1))} of it in year ${H}.`
-      : `Over ${H} years, ${first.label} earns the most growth on invested salary, ${money(total(first))}, `
-        + `${money(total(first) - total(second))} more than ${second.label}.`;
+      : `Over ${H} years, ${first.label}’s investments grow the most, by ${money(total(first))}, `
+        + `${money(total(first) - total(second))} more than ${second.label}’s.`;
     this.summary.replaceChildren(
       el('p', {}, finding),
       el('p', { class: 'sv-fine' },
-        'Each year’s growth on the salary invested in earlier years (salary invested at the end of a year starts '
-        + 'growing the next year), added up across each sub group’s income sources. '
+        'Each year’s growth on everything invested, added up across each sub group’s income sources: the initial '
+        + 'investment, an invested initial payout, and salary and returns invested in earlier years (amounts invested '
+        + 'at the end of a year start growing the next year). Over a timespan it adds up to the gains cashed out at its end. '
         + (afterTax
-          ? 'After tax: only the invested share of salary left after its taxes goes in, and the growth is net of the '
-            + 'capital gains tax it would owe when cashed out at the end of the timespan.'
-          : 'Before tax: taxes are left out, so the whole invested share of the salary goes in and its growth isn’t taxed.')
+          ? 'After tax: only what’s left of the salary, returns and payout after their taxes is invested, and the growth '
+            + 'is net of the capital gains tax it owes when cashed out at the end of the timespan.'
+          : 'Before tax: taxes are left out, so the whole invested share goes in and its growth isn’t taxed.')
         + ' Growth stops when an income source’s timespan ends; indefinite ones aren’t shown.'));
   }
 }
