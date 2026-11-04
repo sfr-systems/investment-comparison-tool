@@ -1,5 +1,13 @@
 import { el, icon } from './format.js';
 import { STATES, TAX_YEAR } from './taxData.js';
+import { Models } from './Models.js';
+
+/** What every total adds up (project.display.totals). */
+const TOTALS = [
+  { key: 'pv', label: 'Present value', title: 'Present value: each year’s cash discounted to today at the discount rate' },
+  { key: 'cumulative', label: 'Cumulative', title: 'Cumulative value: every year’s cash added up as received (not discounted), '
+    + 'after loan repayments and, when included, taxes' },
+];
 
 /** States sorted by name, for the state pickers. */
 const STATE_OPTIONS = Object.entries(STATES)
@@ -7,9 +15,10 @@ const STATE_OPTIONS = Object.entries(STATES)
   .map(([code, st]) => ({ code, name: st.name }));
 
 /**
- * Switches along the bottom of the Assumptions bar: include taxes (asking for the state of
- * residence the first time) with a state picker, and show or hide every income source's
- * cash-flow chart and yearly table (project.display).
+ * Switches along the bottom of the Assumptions bar: whether totals show present value or
+ * cumulative value net of taxes, include taxes (asking for the state of residence the first time)
+ * with a state picker, and show or hide every income source's cash-flow chart and yearly table
+ * (project.display).
  */
 export class ProjectOptions {
   constructor(project, ctx) {
@@ -44,6 +53,9 @@ export class ProjectOptions {
     });
 
     this.root = el('div', { class: 'settings-options' },
+      el('div', { class: 'option-group totals-options' },
+        el('span', { class: 'field-label', id: `totals-label-${project.id}` }, 'Totals'),
+        this.totalsToggle()),
       el('div', { class: 'option-group tax-options' }, this.taxSwitch, this.stateField, this.taxHint),
       el('div', { class: 'option-group display-options', role: 'group', 'aria-label': 'Show on income sources' },
         el('span', { class: 'field-label' }, 'Show'),
@@ -51,6 +63,38 @@ export class ProjectOptions {
         display('tables', 'Yearly tables')));
     this.sync();
     return this.root;
+  }
+
+  /** [Present value | Cumulative] for every total on the page (project.display.totals). */
+  totalsToggle() {
+    const { project, ctx } = this;
+    const group = el('div', {
+      class: 'unit-toggle totals-toggle', role: 'radiogroup', 'aria-labelledby': `totals-label-${project.id}`,
+    });
+    const buttons = TOTALS.map((m) => el('button', {
+      type: 'button', class: 'unit-option', role: 'radio', title: m.title,
+      onclick: () => {
+        if (Models.totalsMeasure(project) === m.key) return;
+        project.display.totals = m.key;
+        sync();
+        ctx.changed();
+      },
+    }, m.label));
+    const sync = () => buttons.forEach((b, i) => {
+      const on = TOTALS[i].key === Models.totalsMeasure(project);
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+    });
+    group.addEventListener('keydown', (e) => {
+      const i = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0 }[e.key];
+      if (i == null) return;
+      e.preventDefault();
+      buttons[i].click();
+      buttons[i].focus();
+    });
+    sync();
+    group.append(...buttons);
+    return group;
   }
 
   /** On/off switch button; `onToggle(on)` decides what happens (the taxes switch may ask first). */

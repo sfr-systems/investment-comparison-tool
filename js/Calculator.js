@@ -489,12 +489,127 @@ export class Calculator {
     return Calculator.opportunityBreakdown(opp, settings).total;
   }
 
-  /** { byIndividual: [[name, pv], ...] sorted with "Unassigned" last, total } */
-  static subGroupTotals(subGroup, settings) {
+  /**
+   * The cumulative value of an opportunity, net of taxes: every year's cash added up as received,
+   * without discounting (Σ net_t of yearlyLedger), split by the same keys as opportunityBreakdown.
+   * Invested amounts count at what they're worth when cashed out at year n (salary/return invested
+   * includes its growth; `initial` is the investment's gain, its value at n less what was paid in;
+   * an invested initial payout includes its growth). Loan repayments and taxes are negative.
+   * Indefinite: one-time amounts at the start count once (the initial payout less its tax; an
+   * investment holds its value, so it adds nothing) and anything received or paid every year adds
+   * up without limit (±Infinity).
+   */
+  static cumulativeBreakdown(opp, settings) {
+    const out = {
+      initial: 0, initialPayout: 0, yearlyReturn: 0, yearlyReturnInvested: 0, payout: 0,
+      salary: 0, salaryInvested: 0, loan: 0, federalTax: 0, capitalGainsTax: 0, payrollTax: 0, stateTax: 0,
+    };
+    const perpetuity = Calculator.perpetuityLedger(opp, settings);
+    if (perpetuity) {
+      const { start, every } = perpetuity;
+      const forever = (x) => (x ? Math.sign(x) * Infinity : 0);
+      out.initialPayout = start.income.initialPayout;
+      out.yearlyReturn = forever(every.income.yearlyReturn);
+      out.salary = forever(every.income.salary);
+      out.loan = forever(-every.expenses.loan);
+      for (const [kind, key] of Object.entries(TAX_KEYS)) {
+        out[key] = -(start.taxes[kind] + forever(every.taxes[kind])) || 0;
+      }
+      return { ...out, total: start.net + forever(every.net) };
+    }
+    const map = {
+      initial: ['initial'],
+      initialPayout: ['initialPayout', 'initialPayoutGrowth'],
+      yearlyReturn: ['yearlyReturn'],
+      yearlyReturnInvested: ['yearlyReturnInvested', 'yearlyReturnGrowth'],
+      salary: ['salary'],
+      salaryInvested: ['salaryInvested', 'salaryGrowth'],
+      payout: ['payout'],
+      loan: ['loan'],
+      ...Object.fromEntries(Object.values(TAX_KEYS).map((key) => [key, [key]])),
+    };
+    for (const { income, costs } of Calculator.yearlyCashFlows(opp, settings)) {
+      for (const [key, keys] of Object.entries(map)) out[key] += sumKeys(income, keys) + sumKeys(costs, keys);
+    }
+    return { ...out, total: sumValues(out) };
+  }
+
+  /**
+   * What an opportunity would be worth, net, if it cashed out every investment and paid all its
+   * taxes at the end of each year t = 0..n (null on an indefinite timespan): everything received
+   * through year t (salary and return in full, payouts) less amounts paid in, loan repayments made
+   * and each year's taxes, plus every investment's value at t, with year t's taxes counting the gains
+   * of cashing them out then (long-term capital gains, as at year n). Not discounted. Loan balances
+   * still owed aren't subtracted. values[n] is the cumulative value (cumulativeBreakdown total).
+   */
+  static cashOutValues(opp, settings) {
+    const n = Calculator.resolveYears(opp, settings);
+    if (n === Infinity) return null;
+    const years = Calculator.baseCashFlows(opp, settings, n);
+    const taxable = Calculator.taxableIncome(years);
+    const taxesOn = Calculator.taxesOn(settings);
+    const status = Calculator.filingStatus(opp);
+    const taxOn = (income) => (taxesOn ? sumValues(Tax.year(income, settings.taxes.state, status)) : 0);
+    const I = +opp.initial?.amount || 0;
+    const g = Calculator.resolveRate(opp.initial?.rate, settings);
+    let cash = 0; // received less paid out through year t, before taxes; invested amounts and growth count
+    let growth = 0; // growth on invested payout, salary and returns so far
+    let taxesBefore = 0; // taxes for the years before t (no gains then)
+    const values = [];
+    for (let t = 0; t <= n; t++) {
+      const { income, costs } = years[t];
+      cash += sumValues(income) - (income.initial || 0) + sumValues(costs);
+      growth += sumKeys(income, GROWTH_KEYS);
+      const investment = I * Math.pow(1 + g, t);
+      const gains = investment - I + growth;
+      values.push(cash + investment - taxesBefore - taxOn({ ...taxable[t], capitalGains: gains }));
+      taxesBefore += taxOn({ ...taxable[t], capitalGains: 0 });
+    }
+    return values;
+  }
+
+  /**
+   * A strategy's sub groups compared by cashOutValues: { years: H, lines: [{ subGroup, values }],
+   * excluded } where values[t] (t = 0..H) adds up the sub group's income sources, each holding its
+   * final value after its timespan ends; H is the longest set timespan. Income sources on an
+   * indefinite timespan never cash out, so they're left out (`excluded` counts them), and sub groups
+   * with nothing left get no line.
+   */
+  static cashOutSeries(strategy, settings) {
+    let excluded = 0;
+    const groups = strategy.subGroups.map((subGroup) => ({
+      subGroup,
+      sources: subGroup.opportunities.map((opp) => Calculator.cashOutValues(opp, settings))
+        .filter((v) => v || !++excluded),
+    })).filter((g) => g.sources.length);
+    const years = Math.max(0, ...groups.flatMap((g) => g.sources.map((v) => v.length - 1)));
+    const lines = groups.map(({ subGroup, sources }) => ({
+      subGroup,
+      values: Array.from({ length: years + 1 }, (_, t) =>
+        sources.reduce((a, v) => a + v[Math.min(t, v.length - 1)], 0)),
+    }));
+    return { years, lines, excluded };
+  }
+
+  /** What totals add up: 'pv' (present value, the default) or 'cumulative' (cumulativeBreakdown). */
+  static breakdown(opp, settings, measure = 'pv') {
+    return measure === 'cumulative'
+      ? Calculator.cumulativeBreakdown(opp, settings) : Calculator.opportunityBreakdown(opp, settings);
+  }
+
+  static opportunityValue(opp, settings, measure = 'pv') {
+    return Calculator.breakdown(opp, settings, measure).total;
+  }
+
+  /**
+   * { byIndividual: [[name, value], ...] sorted with "Unassigned" last, total }, in present value
+   * or, with measure 'cumulative', cumulative value net of taxes.
+   */
+  static subGroupTotals(subGroup, settings, measure = 'pv') {
     const map = new Map();
     let total = 0;
     for (const opp of subGroup.opportunities) {
-      const pv = Calculator.opportunityPV(opp, settings);
+      const pv = Calculator.opportunityValue(opp, settings, measure);
       const key = (opp.individual || '').trim() || 'Unassigned';
       map.set(key, (map.get(key) || 0) + pv);
       total += pv;
@@ -507,8 +622,8 @@ export class Calculator {
     return { byIndividual, total };
   }
 
-  static strategyTotal(strategy, settings) {
+  static strategyTotal(strategy, settings, measure = 'pv') {
     return strategy.subGroups.reduce(
-      (sum, sg) => sum + Calculator.subGroupTotals(sg, settings).total, 0);
+      (sum, sg) => sum + Calculator.subGroupTotals(sg, settings, measure).total, 0);
   }
 }

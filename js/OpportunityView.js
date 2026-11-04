@@ -115,7 +115,7 @@ export class OpportunityView {
       (this.chart = new CashFlowChart(opp, ctx, { onExpand: () => this.expand('chart') })).render(),
       (this.table = new YearlyTable(opp, ctx, { onExpand: () => this.expand('table') })).render(),
       el('footer', { class: 'opp-footer' },
-        el('div', { class: 'pv' }, el('span', { class: 'pv-label' }, 'Present value'), this.pvEl),
+        el('div', { class: 'pv' }, this.pvLabel = el('span', { class: 'pv-label' }), this.pvEl),
         this.warningEl = el('p', { class: 'pv-warning', hidden: true }),
         this.breakdownEl,
         this.yearsBtn = el('button', {
@@ -459,14 +459,24 @@ export class OpportunityView {
     const n = Calculator.resolveYears({ yearsMode: 'default' }, this.ctx.project.settings);
     this.defaultYearsOption.textContent = `Default (${n} ${n === 1 ? 'yr' : 'yrs'})`;
 
-    const b = Calculator.opportunityBreakdown(this.opp, this.ctx.project.settings);
+    // Totals switch (Assumptions bar): present value, or every year's cash added up after taxes.
+    const settings = this.ctx.project.settings;
+    const taxesOn = Calculator.taxesOn(settings);
+    const cumulative = Models.totalsMeasure(this.ctx.project) === 'cumulative';
+    const pvB = Calculator.opportunityBreakdown(this.opp, settings);
+    const b = cumulative ? Calculator.cumulativeBreakdown(this.opp, settings) : pvB;
     showPV(this.pvEl, b.total);
+    this.pvLabel.textContent = !cumulative ? 'Present value'
+      : taxesOn ? 'Cumulative value, net of taxes' : 'Cumulative value';
+    this.pvLabel.title = cumulative
+      ? 'Every year’s cash added up as received (not discounted), after loan repayments'
+        + (taxesOn ? ' and taxes' : '') + '; investments count at their value when cashed out'
+      : '';
 
     // Filing status only matters, and only shows, while taxes are included.
-    const taxesOn = Calculator.taxesOn(this.ctx.project.settings);
     this.filingField.hidden = !taxesOn;
     this.filingNote.hidden = !taxesOn;
-    if (taxesOn) this.updateFilingEffect(b);
+    if (taxesOn) this.updateFilingEffect(pvB);
     this.pvEl.classList.toggle('negative', b.total < -0.005);
 
     // Indefinite timespan: the final payout never arrives, and some parts may not converge.
@@ -498,7 +508,11 @@ export class OpportunityView {
       .filter(([key]) => !Number.isFinite(b[key]))
       .map(([key, label]) => (key === 'payrollTax' ? label : label.toLowerCase())); // keep proper nouns
     this.warningEl.hidden = !unbounded.length;
-    if (unbounded.length) {
+    if (unbounded.length && cumulative) {
+      this.warningEl.textContent = `Unbounded: on an indefinite timespan, the ${unbounded.join(' and ')} `
+        + `${unbounded.length > 1 ? 'never stop' : 'never stops'}, so ${unbounded.length > 1 ? 'they add' : 'it adds'} up without limit. `
+        + 'Switch Totals to Present value, or use a set timespan.';
+    } else if (unbounded.length) {
       this.warningEl.textContent = `Unbounded: with a discount rate of ${d}%, the ${unbounded.join(' and ')} `
         + `${unbounded.length > 1 ? 'have' : 'has'} no finite present value when ${unbounded.length > 1 ? 'they continue' : 'it continues'} forever. `
         + 'Use a discount rate above 0%, or a set timespan.';

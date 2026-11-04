@@ -267,6 +267,14 @@ const totals = C.subGroupTotals(sg, settings);
 check('sub group total', totals.total, 2 * (-92.9705 + 1886.6213 - 1000));
 console.log('individuals:', totals.byIndividual.map(([n]) => n).join(', '));
 
+// Cumulative value, hand-computed (no taxes): salary 1000 + 1030 = 2030; investment 1000 at S&P 0% → gain 0;
+// loan 1000 at 5% over 2 yrs: A = 1000·0.05/(1 − 1.05^−2) = 537.8049, repaid 2 × 537.8049 = 1075.6098
+// → 2030 − 1075.6098 = 954.3902 (vs PV −92.9705 + 1886.6213 − 1000 = 793.6508)
+check('cumulative: salary + investment − loan, undiscounted', C.cumulativeBreakdown(opp, settings).total, 954.3902);
+check('cumulative: loan part', C.cumulativeBreakdown(opp, settings).loan, -1075.6098);
+check('strategy total, cumulative', C.strategyTotal({ subGroups: [sg] }, settings, 'cumulative'), 2 * 954.3902);
+check('strategy total defaults to PV', C.strategyTotal({ subGroups: [sg] }, settings), totals.total);
+
 // Duplicating a strategy: deep copy with fresh ids, same present value, independent of the original
 const strat = { id: 's1', title: 'Plan A', collapsed: false, subGroups: [
   { id: 'g1', title: 'Group', opportunities: [{ ...opp, id: 'o1' }, { ...opp, id: 'o2' }] }] };

@@ -201,6 +201,54 @@ const zeroD = C.perpetuityLedger(forever, settings('TX', { discountRate: 0 }));
 check('perpetuity: d = 0 → unbounded yearly value', zeroD.every.pv, Infinity);
 check('perpetuity: d = 0, nothing yearly → 0', C.perpetuityLedger(
   { ...forever, salary: { amount: 0 }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } }, settings('TX', { discountRate: 0 })).every.pv, 0);
+// ---- Cumulative value (Totals: Cumulative): every year's net added up, not discounted
+for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: false } }], ['NY taxes', settings('NY')],
+  ['CA joint', settings('CA')]]) {
+  const o = label === 'CA joint' ? { ...full, filingStatus: 'joint' } : full;
+  const cum = C.cumulativeBreakdown(o, s);
+  check(`cumulative (${label}): total = Σ ledger net`, cum.total, C.yearlyLedger(o, s).reduce((a, row) => a + row.net, 0), 1e-6);
+  const parts = Object.entries(cum).filter(([k]) => k !== 'total').reduce((a, [, v]) => a + v, 0);
+  check(`cumulative (${label}): parts add up to the total`, parts, cum.total, 1e-6);
+  check(`cumulative (${label}): same as PV at a 0% discount rate`, cum.total,
+    C.opportunityPV(o, { ...s, discountRate: 0 }), 1e-6);
+  check(`cumulative (${label}): doesn't depend on the discount rate`, C.cumulativeBreakdown(o, { ...s, discountRate: 3 }).total, cum.total, 1e-6);
+}
+check('cumulative: taxes are negative', Math.sign(C.cumulativeBreakdown(full, settings('NY')).stateTax), -1);
+check('cumulative: taxes off → no taxes', C.cumulativeBreakdown(full, { ...settings('NY'), taxes: { enabled: false } }).federalTax, 0);
+// Indefinite: the start counts once; yearly amounts never stop
+const cumForever = C.cumulativeBreakdown(forever, settings('NY'));
+check('cumulative indefinite: unbounded salary', cumForever.salary, Infinity);
+check('cumulative indefinite: unbounded total', cumForever.total, Infinity);
+check('cumulative indefinite: initial payout once', cumForever.initialPayout, 20000);
+const startOnly = { ...forever, salary: { amount: 0 }, yearlyReturn: { amount: 0 }, loan: { amount: 0 } };
+check('cumulative indefinite, nothing yearly: payout less its tax', C.cumulativeBreakdown(startOnly, settings('NY')).total,
+  20000 - C.startTax(startOnly, settings('NY')), 1e-6);
+check('cumulative: measure switch', C.opportunityValue(full, settings('NY'), 'cumulative'),
+  C.cumulativeBreakdown(full, settings('NY')).total);
+check('cumulative: sub group total', C.subGroupTotals({ opportunities: [full, full] }, settings('NY'), 'cumulative').total,
+  2 * C.cumulativeBreakdown(full, settings('NY')).total, 1e-6);
+// ---- Cash-out values (strategy chart): net worth if everything were cashed out and taxed each year
+for (const [label, s] of [['taxes off', { ...settings('NY'), taxes: { enabled: false } }], ['NY taxes', settings('NY')]]) {
+  const v = C.cashOutValues(full, s);
+  check(`cash out (${label}): one value per year 0..n`, v.length, 4);
+  check(`cash out (${label}): year n = cumulative value`, v[3], C.cumulativeBreakdown(full, s).total, 1e-6);
+  // Year 1 = the same opportunity with a 1-year timespan, less its final payout and with the loan's
+  // year-1 repayment from the 3-year schedule
+  const one = { ...full, years: 1, payout: 0, loan: { amount: 0 } };
+  const A = C.loanPayment(10000, 0.05, 3);
+  check(`cash out (${label}): year 1 = a 1-year timespan, loan repaid on schedule`, v[1],
+    C.cumulativeBreakdown(one, s).total - A, 1e-6);
+}
+const v0 = C.cashOutValues(full, settings('NY'));
+check('cash out: start = payout less its tax, investment back at cost', v0[0], 20000 - C.startTax(full, settings('NY')), 1e-6);
+check('cash out: indefinite → none', C.cashOutValues(forever, settings('NY')) === null ? 1 : 0, 1);
+const series = C.cashOutSeries({ subGroups: [
+  { opportunities: [full, { ...full, years: 1 }] }, { opportunities: [forever] }, { opportunities: [] }] }, settings('NY'));
+check('cash out series: longest timespan', series.years, 3);
+check('cash out series: sub groups with nothing to cash out get no line', series.lines.length, 1);
+check('cash out series: indefinite sources counted as left out', series.excluded, 1);
+check('cash out series: a shorter source holds its final value', series.lines[0].values[3],
+  C.cashOutValues(full, settings('NY'))[3] + C.cashOutValues({ ...full, years: 1 }, settings('NY'))[1], 1e-6);
 check('ledger: no start row without start amounts', C.yearlyLedger(salary60k, settings('TX'))[0].year, 1);
 
 // ---- High incomes: federal
